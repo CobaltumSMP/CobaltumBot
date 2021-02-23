@@ -3,3 +3,13 @@
 
 # Ignore Gradle build output directory
 build
+
+# Intellij IDEA
+.idea
+*.iml
+
+# Residues from js/ts branch
+.env
+*.log
+node_modules/
+built/
