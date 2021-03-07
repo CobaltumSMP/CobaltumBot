@@ -6,7 +6,6 @@ plugins {
 
 repositories {
     mavenCentral()
-    jcenter() // TODO remove
 }
 
 dependencies {
@@ -14,11 +13,25 @@ dependencies {
     testImplementation 'junit:junit:4.13'
 
     // This dependency is used by the application.
-    implementation 'net.dv8tion:JDA:4.2.0_168'
+    implementation 'org.javacord:javacord:3.1.2'
+    // Logging
+    implementation 'org.apache.logging.log4j:log4j-core:2.14.0'
+    implementation 'org.apache.logging.log4j:log4j-slf4j18-impl:2.14.0'
+    // Database
+    implementation 'mysql:mysql-connector-java:5.1.44'
+    implementation 'org.apache.cayenne:cayenne-server:4.1'
+
+    // Util
+    implementation 'com.vdurmont:emoji-java:5.1.1'
+    implementation 'org.apache.httpcomponents.client5:httpclient5:5.0.3'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.9.0'
     implementation 'com.google.guava:guava:29.0-jre'
+
+    // RCON
+    implementation files('libs/JRcon-2.0.jar')
 }
 
 application {
     // Define the main class for the application.
-    mainClassName = 'io.github.cobaltumsmp.discordbot.App'
+    mainClassName = 'cobaltumsmp.discordbot.Main'
 }

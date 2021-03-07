@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-map xmlns="http://cayenne.apache.org/schema/10/modelMap"
+	 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	 xsi:schemaLocation="http://cayenne.apache.org/schema/10/modelMap https://cayenne.apache.org/schema/10/modelMap.xsd"
+	 project-version="10">
+	<property name="defaultPackage" value="cobaltumsmp.discordbot.module.ticketsystem"/>
+	<db-entity name="Ticket" catalog="testbot3">
+		<db-attribute name="botMsgId" type="BIGINT" isMandatory="true" length="19"/>
+		<db-attribute name="channelId" type="BIGINT" isMandatory="true" length="19"/>
+		<db-attribute name="closed" type="BIT" isMandatory="true"/>
+		<db-attribute name="globalTicketId" type="INTEGER" isPrimaryKey="true" isGenerated="true" isMandatory="true" length="10"/>
+		<db-attribute name="ownerId" type="BIGINT" isMandatory="true" length="19"/>
+		<db-attribute name="ticketConfigId" type="INTEGER" isMandatory="true" length="10"/>
+		<db-attribute name="ticketId" type="INTEGER" isMandatory="true" length="10"/>
+	</db-entity>
+	<db-entity name="TicketConfig" catalog="testbot3">
+		<db-attribute name="closedTicketCategoryId" type="BIGINT" isMandatory="true" length="19"/>
+		<db-attribute name="messageChannelId" type="BIGINT" isMandatory="true" length="19"/>
+		<db-attribute name="messageId" type="BIGINT" isMandatory="true" length="19"/>
+		<db-attribute name="roles" type="VARCHAR" isMandatory="true" length="128"/>
+		<db-attribute name="ticketCategoryId" type="BIGINT" isMandatory="true" length="19"/>
+		<db-attribute name="ticketConfigId" type="INTEGER" isPrimaryKey="true" isGenerated="true" isMandatory="true" length="10"/>
+	</db-entity>
+	<obj-entity name="Ticket" className="cobaltumsmp.discordbot.module.ticketsystem.Ticket" dbEntityName="Ticket">
+		<obj-attribute name="botMsgId" type="long" db-attribute-path="botMsgId"/>
+		<obj-attribute name="channelId" type="long" db-attribute-path="channelId"/>
+		<obj-attribute name="closed" type="boolean" db-attribute-path="closed"/>
+		<obj-attribute name="ownerId" type="long" db-attribute-path="ownerId"/>
+		<obj-attribute name="ticketId" type="int" db-attribute-path="ticketId"/>
+	</obj-entity>
+	<obj-entity name="TicketConfig" className="cobaltumsmp.discordbot.module.ticketsystem.TicketConfig" dbEntityName="TicketConfig">
+		<obj-attribute name="closedTicketCategoryId" type="long" db-attribute-path="closedTicketCategoryId"/>
+		<obj-attribute name="messageChannelId" type="long" db-attribute-path="messageChannelId"/>
+		<obj-attribute name="messageId" type="long" db-attribute-path="messageId"/>
+		<obj-attribute name="roles" type="java.lang.String" db-attribute-path="roles"/>
+		<obj-attribute name="ticketCategoryId" type="long" db-attribute-path="ticketCategoryId"/>
+	</obj-entity>
+	<db-relationship name="ticketConfig" source="Ticket" target="TicketConfig">
+		<db-attribute-pair source="ticketConfigId" target="ticketConfigId"/>
+	</db-relationship>
+	<db-relationship name="tickets" source="TicketConfig" target="Ticket" toMany="true">
+		<db-attribute-pair source="ticketConfigId" target="ticketConfigId"/>
+	</db-relationship>
+	<obj-relationship name="ticketConfig" source="Ticket" target="TicketConfig" deleteRule="Nullify" db-relationship-path="ticketConfig"/>
+	<obj-relationship name="tickets" source="TicketConfig" target="Ticket" deleteRule="Deny" db-relationship-path="tickets"/>
+	<dbImport xmlns="http://cayenne.apache.org/schema/10/dbimport">
+		<catalog>
+			<name>testbot3</name>
+		</catalog>
+		<tableTypes>
+			<tableType>TABLE</tableType>
+			<tableType>VIEW</tableType>
+		</tableTypes>
+		<forceDataMapCatalog>false</forceDataMapCatalog>
+		<forceDataMapSchema>false</forceDataMapSchema>
+		<namingStrategy>org.apache.cayenne.dbsync.naming.DefaultObjectNameGenerator</namingStrategy>
+		<skipPrimaryKeyLoading>false</skipPrimaryKeyLoading>
+		<skipRelationshipsLoading>false</skipRelationshipsLoading>
+		<useJava7Types>false</useJava7Types>
+		<usePrimitives>true</usePrimitives>
+	</dbImport>
+	<cgen xmlns="http://cayenne.apache.org/schema/10/cgen">
+		<destDir>../../main/java</destDir>
+		<mode>all</mode>
+		<template>templates/v4_1/subclass.vm</template>
+		<superTemplate>templates/v4_1/superclass.vm</superTemplate>
+		<outputPattern>*.java</outputPattern>
+		<makePairs>true</makePairs>
+		<usePkgPath>true</usePkgPath>
+		<overwrite>false</overwrite>
+		<createPropertyNames>false</createPropertyNames>
+		<createPKProperties>false</createPKProperties>
+		<client>false</client>
+	</cgen>
+</data-map>
