@@ -24,6 +24,8 @@ jobs:
         VALIDATE_YAML: false
         VALIDATE_XML: false
         VALIDATE_GROOVY: false
+#        Ignore gradle wrapper files
+        FILTER_REGEX_EXCLUDE: gradlew|gradlew\.bat|gradle\/.*
 
   build:
     name: Build
