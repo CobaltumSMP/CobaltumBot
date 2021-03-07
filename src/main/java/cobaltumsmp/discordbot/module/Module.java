@@ -2,7 +2,7 @@ package cobaltumsmp.discordbot.module;
 
 import cobaltumsmp.discordbot.command.Command;
 import org.javacord.api.DiscordApi;
-import org.javacord.api.entity.message.Message;
+import org.javacord.api.entity.channel.TextChannel;
 
 import java.util.function.Consumer;
 
@@ -33,11 +33,11 @@ public abstract class Module {
             this.module = module;
         }
 
-        public final boolean cantExecute(Message message) {
+        public final boolean cantExecute(TextChannel channel) {
             if (!this.module.isEnabled()) {
-                message.getChannel().sendMessage("The module this command depends on isn't enabled.");
+                channel.sendMessage("The module this command depends on isn't enabled.");
             } else if (!this.module.isLoaded()) {
-                message.getChannel().sendMessage("The module this command depends on isn't loaded.");
+                channel.sendMessage("The module this command depends on isn't loaded.");
             }
 
             return !this.module.isEnabled() || !this.module.isLoaded();

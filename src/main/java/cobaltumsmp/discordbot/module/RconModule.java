@@ -130,7 +130,7 @@ public class RconModule extends Module {
 
         @Override
         public void execute(Message message, List<String> args) {
-            if (this.cantExecute(message)) {
+            if (this.cantExecute(message.getChannel())) {
                 return;
             }
 

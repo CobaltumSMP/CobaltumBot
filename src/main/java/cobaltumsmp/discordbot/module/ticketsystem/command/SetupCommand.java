@@ -8,7 +8,11 @@ import cobaltumsmp.discordbot.module.ticketsystem.TicketSystemModule;
 import com.vdurmont.emoji.EmojiParser;
 import org.apache.cayenne.ObjectContext;
 import org.javacord.api.DiscordApi;
-import org.javacord.api.entity.channel.*;
+import org.javacord.api.entity.channel.Channel;
+import org.javacord.api.entity.channel.ChannelCategory;
+import org.javacord.api.entity.channel.ServerChannelUpdater;
+import org.javacord.api.entity.channel.ServerTextChannel;
+import org.javacord.api.entity.channel.TextChannel;
 import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.MessageBuilder;
 import org.javacord.api.entity.message.embed.EmbedBuilder;
@@ -44,7 +48,7 @@ public class SetupCommand extends Module.ModuleCommand<TicketSystemModule> {
     }
 
     @Override
-    public boolean useOnGuild() {
+    public boolean mainGuild() {
         return true;
     }
 
@@ -60,7 +64,7 @@ public class SetupCommand extends Module.ModuleCommand<TicketSystemModule> {
 
     @Override
     public void execute(Message message, List<String> args) {
-        if (this.cantExecute(message)) {
+        if (this.cantExecute(message.getChannel())) {
             return;
         }
 
