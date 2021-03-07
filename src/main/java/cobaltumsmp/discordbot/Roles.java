@@ -5,6 +5,9 @@ import org.javacord.api.entity.user.User;
 
 import java.util.List;
 
+/**
+ * Roles for the main guild.
+ */
 public enum Roles {
     NONE(BotConfig.GUILD_ID_MAIN), // Everyone role has the same id as the server
     DEV(BotConfig.ROLE_ID_DEV),
@@ -19,12 +22,20 @@ public enum Roles {
         this.role = getRoleById(id);
     }
 
-    public static boolean checkRoles(Roles role, User user) {
+    /**
+     * Check if the given user has the same or a higher role than the provided.
+     *
+     * @param user the user to check.
+     * @param role the role that the user should have as minimum.
+     * @return if the user has the same or a higher role.
+     */
+    public static boolean checkRoles(User user, Roles role) {
         if (role == Roles.DEV) {
             return true;
         }
 
-        List<Role> roles = user.getRoles(Main.getApi().getServerById(BotConfig.GUILD_ID_MAIN).get());
+        List<Role> roles = user.getRoles(Main.getApi().getServerById(BotConfig.GUILD_ID_MAIN)
+                .get());
 
         // Iterate from the lowest to higher role so having a higher role than the
         // requested one returns true as well

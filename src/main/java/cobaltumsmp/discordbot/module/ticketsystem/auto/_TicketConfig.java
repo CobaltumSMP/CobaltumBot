@@ -15,18 +15,25 @@ import java.util.List;
  * since it may be overwritten next time code is regenerated.
  * If you need to make any customizations, please use subclass.
  */
+@SuppressWarnings("checkstyle:TypeName")
 public abstract class _TicketConfig extends BaseDataObject {
 
     private static final long serialVersionUID = 1L; 
 
     public static final String TICKET_CONFIG_ID_PK_COLUMN = "ticketConfigId";
 
-    public static final Property<Long> CLOSED_TICKET_CATEGORY_ID = Property.create("closedTicketCategoryId", Long.class);
-    public static final Property<Long> MESSAGE_CHANNEL_ID = Property.create("messageChannelId", Long.class);
-    public static final Property<Long> MESSAGE_ID = Property.create("messageId", Long.class);
-    public static final Property<String> ROLES = Property.create("roles", String.class);
-    public static final Property<Long> TICKET_CATEGORY_ID = Property.create("ticketCategoryId", Long.class);
-    public static final Property<List<Ticket>> TICKETS = Property.create("tickets", List.class);
+    public static final Property<Long> CLOSED_TICKET_CATEGORY_ID = Property.create(
+            "closedTicketCategoryId", Long.class);
+    public static final Property<Long> MESSAGE_CHANNEL_ID = Property.create(
+            "messageChannelId", Long.class);
+    public static final Property<Long> MESSAGE_ID = Property.create(
+            "messageId", Long.class);
+    public static final Property<String> ROLES = Property.create(
+            "roles", String.class);
+    public static final Property<Long> TICKET_CATEGORY_ID = Property.create(
+            "ticketCategoryId", Long.class);
+    public static final Property<List<Ticket>> TICKETS = Property.create(
+            "tickets", List.class);
 
     protected long closedTicketCategoryId;
     protected long messageChannelId;
@@ -36,8 +43,12 @@ public abstract class _TicketConfig extends BaseDataObject {
 
     protected Object tickets;
 
+    /**
+     * Set the closed ticket category ID.
+     */
     public void setClosedTicketCategoryId(long closedTicketCategoryId) {
-        beforePropertyWrite("closedTicketCategoryId", this.closedTicketCategoryId, closedTicketCategoryId);
+        beforePropertyWrite("closedTicketCategoryId", this.closedTicketCategoryId,
+                closedTicketCategoryId);
         this.closedTicketCategoryId = closedTicketCategoryId;
     }
 
@@ -96,16 +107,16 @@ public abstract class _TicketConfig extends BaseDataObject {
 
     @SuppressWarnings("unchecked")
     public List<Ticket> getTickets() {
-        return (List<Ticket>)readProperty("tickets");
+        return (List<Ticket>) readProperty("tickets");
     }
 
     @Override
     public Object readPropertyDirectly(String propName) {
-        if(propName == null) {
+        if (propName == null) {
             throw new IllegalArgumentException();
         }
 
-        switch(propName) {
+        switch (propName) {
             case "closedTicketCategoryId":
                 return this.closedTicketCategoryId;
             case "messageChannelId":
@@ -125,25 +136,25 @@ public abstract class _TicketConfig extends BaseDataObject {
 
     @Override
     public void writePropertyDirectly(String propName, Object val) {
-        if(propName == null) {
+        if (propName == null) {
             throw new IllegalArgumentException();
         }
 
         switch (propName) {
             case "closedTicketCategoryId":
-                this.closedTicketCategoryId = val == null ? 0 : (long)val;
+                this.closedTicketCategoryId = val == null ? 0 : (long) val;
                 break;
             case "messageChannelId":
-                this.messageChannelId = val == null ? 0 : (long)val;
+                this.messageChannelId = val == null ? 0 : (long) val;
                 break;
             case "messageId":
-                this.messageId = val == null ? 0 : (long)val;
+                this.messageId = val == null ? 0 : (long) val;
                 break;
             case "roles":
-                this.roles = (String)val;
+                this.roles = (String) val;
                 break;
             case "ticketCategoryId":
-                this.ticketCategoryId = val == null ? 0 : (long)val;
+                this.ticketCategoryId = val == null ? 0 : (long) val;
                 break;
             case "tickets":
                 this.tickets = val;
@@ -178,7 +189,7 @@ public abstract class _TicketConfig extends BaseDataObject {
         this.closedTicketCategoryId = in.readLong();
         this.messageChannelId = in.readLong();
         this.messageId = in.readLong();
-        this.roles = (String)in.readObject();
+        this.roles = (String) in.readObject();
         this.ticketCategoryId = in.readLong();
         this.tickets = in.readObject();
     }

@@ -11,6 +11,14 @@ import org.javacord.api.entity.message.MessageBuilder;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Send a message to the configured channel
+ * ({@link cobaltumsmp.discordbot.BotConfig#CHANNEL_ID_BROADCAST}).
+ *
+ * <p>Usage: {@code broadcast <message>}</p>
+ *
+ * @see EchoCommand
+ */
 public class BroadcastCommand implements Command {
     @Override
     public String name() {
@@ -19,7 +27,9 @@ public class BroadcastCommand implements Command {
 
     @Override
     public String[] description() {
-        return new String[]{"Like echo, but sends the message to the configured broadcast channel."};
+        return new String[]{
+            "Like echo, but sends the message to the configured broadcast channel."
+        };
     }
 
     @Override
@@ -44,13 +54,17 @@ public class BroadcastCommand implements Command {
 
     @Override
     public void execute(Message message, List<String> args) {
-        Optional<Channel> optionalChannel = Main.getApi().getChannelById(BotConfig.CHANNEL_ID_BROADCAST);
+        Optional<Channel> optionalChannel = Main.getApi()
+                .getChannelById(BotConfig.CHANNEL_ID_BROADCAST);
+
         optionalChannel.ifPresent(channel -> {
             TextChannel textChannel = channel.asTextChannel().get();
             String content = String.join(" ", args);
+
             if (message.getAttachments().size() > 0) {
                 MessageBuilder msgBuilder = new MessageBuilder().append(content);
-                message.getAttachments().forEach(messageAttachment -> msgBuilder.addAttachment(messageAttachment.getUrl()));
+                message.getAttachments().forEach(messageAttachment ->
+                        msgBuilder.addAttachment(messageAttachment.getUrl()));
                 msgBuilder.send(textChannel);
             } else {
                 textChannel.sendMessage(content);

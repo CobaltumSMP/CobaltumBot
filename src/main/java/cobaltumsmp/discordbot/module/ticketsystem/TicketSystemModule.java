@@ -24,6 +24,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+/**
+ * A module that provides support to users through tickets.
+ */
 public class TicketSystemModule extends Module {
     public static final Logger LOGGER = LogManager.getLogger();
     protected static ObjectContext context;
@@ -38,7 +41,8 @@ public class TicketSystemModule extends Module {
     @Override
     public void init() {
         try {
-            ServerRuntime cayenneRuntime = ServerRuntime.builder().addConfig("cayenne-project.xml").build();
+            ServerRuntime cayenneRuntime = ServerRuntime.builder().addConfig("cayenne-project.xml")
+                    .build();
             context = cayenneRuntime.newContext();
             LOGGER.info("Connected to database");
         } catch (Exception e) {
@@ -59,11 +63,18 @@ public class TicketSystemModule extends Module {
         };
     }
 
+    /**
+     * Open a new {@link Ticket}.
+     *
+     * @param ticketConfig the configuration to open the ticket under.
+     * @param owner the owner of the ticket.
+     */
     public void openTicket(TicketConfig ticketConfig, User owner) {
         LOGGER.info("Opening ticket...");
         DiscordApi api = Main.getApi();
         Optional<ChannelCategory> channelCategoryOptional;
-        if ((channelCategoryOptional = api.getChannelCategoryById(ticketConfig.getTicketCategoryId())).isEmpty()) {
+        if ((channelCategoryOptional = api
+                .getChannelCategoryById(ticketConfig.getTicketCategoryId())).isEmpty()) {
             LOGGER.warn("The ticket category with ID '{}' was not found.",
                     ticketConfig.getTicketCategoryId());
             return;
@@ -74,7 +85,8 @@ public class TicketSystemModule extends Module {
         try {
             ticketChannel = new ServerTextChannelBuilder(ticketCategory.getServer())
                     .setCategory(ticketCategory)
-                    .setName("ticket-" + Strings.padStart(Integer.toString(this.getTicketCount()), 4, '0'))
+                    .setName("ticket-"
+                            + Strings.padStart(Integer.toString(this.getTicketCount()), 4, '0'))
                     .create().join();
         } catch (Exception e) {
             LOGGER.error("There was an error trying to create a ticket channel.", e);
@@ -82,10 +94,12 @@ public class TicketSystemModule extends Module {
         }
 
         EmbedBuilder embed = new EmbedBuilder()
-                .setDescription("Hello " + owner.getMentionTag() + ", support will be with you shortly."
+                .setDescription("Hello " + owner.getMentionTag()
+                        + ", support will be with you shortly."
 
                         + " In the meantime, please provide as much information as possible.\n"
-                        + "React with " + EmojiParser.parseToUnicode(":lock:") + " to close the ticket.");
+                        + "React with " + EmojiParser.parseToUnicode(":lock:")
+                        + " to close the ticket.");
         Message botMsg;
         try {
             botMsg = new MessageBuilder().setEmbed(embed).send(ticketChannel).join();

@@ -8,6 +8,11 @@ import org.javacord.api.entity.message.Message;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Open a ticket.
+ *
+ * <p>Usage: {@code open}</p>
+ */
 public class OpenCommand extends Module.ModuleCommand<TicketSystemModule> {
     public OpenCommand(TicketSystemModule module) {
         super(module);
@@ -40,17 +45,20 @@ public class OpenCommand extends Module.ModuleCommand<TicketSystemModule> {
         }
 
         if (this.module.getConfigCount() <= 0) {
-            message.getChannel().sendMessage("There is no valid ticket configuration. You can't do this.");
+            message.getChannel().sendMessage(
+                    "There is no valid ticket configuration. You can't do this.");
             return;
         } else if (this.module.getConfigCount() > 1) {
-            message.getChannel().sendMessage("There is more than one ticket configuration. You can't do this.");
+            message.getChannel().sendMessage(
+                    "There is more than one ticket configuration. You can't do this.");
             return;
         }
 
         TicketConfig config = this.module.getConfigs().get(0);
         if (message.getUserAuthor().isEmpty()) {
             message.getChannel().sendMessage("There was an unexpected error.");
-            TicketSystemModule.LOGGER.error(new IllegalStateException("Message#getUserAuthor was empty"));
+            TicketSystemModule.LOGGER.error(new IllegalStateException(
+                    "Message#getUserAuthor was empty"));
             return;
         }
 

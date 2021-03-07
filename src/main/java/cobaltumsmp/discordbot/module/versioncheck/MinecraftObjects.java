@@ -4,22 +4,35 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
-public class MinecraftObjects {
-    public static class Response {
+/**
+ * Object representations of JSON data from {@link Config#MINECRAFT_URL}.
+ */
+public final class MinecraftObjects {
+    /**
+     * The full response of {@link Config#MINECRAFT_URL}.
+     */
+    public static final class Response {
         @JsonProperty
         public Latest latest;
         @JsonProperty
         public List<Version> versions;
     }
 
-    public static class Latest {
+    /**
+     * The {@link Response#latest} object. Represents the latest
+     * {@linkplain #release} and {@linkplain #snapshot}
+     */
+    public static final class Latest {
         @JsonProperty
         public String release;
         @JsonProperty
         public String snapshot;
     }
 
-    public static class Version {
+    /**
+     * A single object from the {@linkplain Response#versions Response versions} array.
+     */
+    public static final class Version {
         @JsonProperty
         public String id;
         @JsonProperty

@@ -6,6 +6,9 @@ import org.javacord.api.entity.message.Message;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Get the bot ping in ms.
+ */
 public class PingCommand implements Command {
     @Override
     public String name() {

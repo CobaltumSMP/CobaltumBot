@@ -6,5 +6,6 @@ package cobaltumsmp.discordbot.module.ticketsystem.auto;
  * since it may be overwritten next time code is regenerated.
  * If you need to make any customizations, please use subclass.
  */
+@SuppressWarnings("checkstyle:TypeName")
 public class _Datamap {
 }

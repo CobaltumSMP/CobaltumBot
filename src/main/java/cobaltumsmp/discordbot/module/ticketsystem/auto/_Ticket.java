@@ -14,6 +14,7 @@ import java.io.ObjectOutputStream;
  * since it may be overwritten next time code is regenerated.
  * If you need to make any customizations, please use subclass.
  */
+@SuppressWarnings("checkstyle:TypeName")
 public abstract class _Ticket extends BaseDataObject {
 
     private static final long serialVersionUID = 1L; 
@@ -25,7 +26,8 @@ public abstract class _Ticket extends BaseDataObject {
     public static final Property<Boolean> CLOSED = Property.create("closed", Boolean.class);
     public static final Property<Long> OWNER_ID = Property.create("ownerId", Long.class);
     public static final Property<Integer> TICKET_ID = Property.create("ticketId", Integer.class);
-    public static final Property<TicketConfig> TICKET_CONFIG = Property.create("ticketConfig", TicketConfig.class);
+    public static final Property<TicketConfig> TICKET_CONFIG = Property.create("ticketConfig",
+            TicketConfig.class);
 
     protected long botMsgId;
     protected long channelId;
@@ -60,7 +62,7 @@ public abstract class _Ticket extends BaseDataObject {
         this.closed = closed;
     }
 
-	public boolean isClosed() {
+    public boolean isClosed() {
         beforePropertyRead("closed");
         return this.closed;
     }
@@ -90,16 +92,16 @@ public abstract class _Ticket extends BaseDataObject {
     }
 
     public TicketConfig getTicketConfig() {
-        return (TicketConfig)readProperty("ticketConfig");
+        return (TicketConfig) readProperty("ticketConfig");
     }
 
     @Override
     public Object readPropertyDirectly(String propName) {
-        if(propName == null) {
+        if (propName == null) {
             throw new IllegalArgumentException();
         }
 
-        switch(propName) {
+        switch (propName) {
             case "botMsgId":
                 return this.botMsgId;
             case "channelId":
@@ -119,25 +121,25 @@ public abstract class _Ticket extends BaseDataObject {
 
     @Override
     public void writePropertyDirectly(String propName, Object val) {
-        if(propName == null) {
+        if (propName == null) {
             throw new IllegalArgumentException();
         }
 
         switch (propName) {
             case "botMsgId":
-                this.botMsgId = val == null ? 0 : (long)val;
+                this.botMsgId = val == null ? 0 : (long) val;
                 break;
             case "channelId":
-                this.channelId = val == null ? 0 : (long)val;
+                this.channelId = val == null ? 0 : (long) val;
                 break;
             case "closed":
-                this.closed = val == null ? false : (boolean)val;
+                this.closed = val == null ? false : (boolean) val;
                 break;
             case "ownerId":
-                this.ownerId = val == null ? 0 : (long)val;
+                this.ownerId = val == null ? 0 : (long) val;
                 break;
             case "ticketId":
-                this.ticketId = val == null ? 0 : (int)val;
+                this.ticketId = val == null ? 0 : (int) val;
                 break;
             case "ticketConfig":
                 this.ticketConfig = val;

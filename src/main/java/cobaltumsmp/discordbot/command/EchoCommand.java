@@ -6,7 +6,13 @@ import org.javacord.api.entity.message.MessageBuilder;
 
 import java.util.List;
 
-
+/**
+ * Send a message to this channel or the provided one ({@code channel}).
+ *
+ * <p>Usage: {@code echo [<channel>] <message>}</p>
+ *
+ * @see BroadcastCommand
+ */
 public class EchoCommand implements Command {
     @Override
     public String name() {
@@ -36,7 +42,8 @@ public class EchoCommand implements Command {
                 && args.get(0).matches("<#[\\d]+>")) {
             channel = message.getMentionedChannels().get(0);
             if (!channel.canWrite(message.getUserAuthor().get())) {
-                message.getChannel().sendMessage("You don't have permission to send messages in that channel.");
+                message.getChannel().sendMessage(
+                        "You don't have permission to send messages in that channel.");
                 return;
             }
 
@@ -48,7 +55,8 @@ public class EchoCommand implements Command {
         String content = String.join(" ", args);
         if (message.getAttachments().size() > 0) {
             MessageBuilder msgBuilder = new MessageBuilder().append(content);
-            message.getAttachments().forEach(messageAttachment -> msgBuilder.addAttachment(messageAttachment.getUrl()));
+            message.getAttachments().forEach(messageAttachment ->
+                    msgBuilder.addAttachment(messageAttachment.getUrl()));
             msgBuilder.send(channel);
         } else {
             channel.sendMessage(content);

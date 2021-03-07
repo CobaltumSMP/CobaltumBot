@@ -2,14 +2,43 @@ package cobaltumsmp.discordbot;
 
 import java.util.function.Function;
 
+/**
+ * Global config for the bot.
+ */
 public class BotConfig {
+    /**
+     * The bot prefix.
+     */
     public static final String PREFIX = System.getenv("BOT_PREFIX");
+    /**
+     * The ID of the main guild.
+     */
     public static final long GUILD_ID_MAIN;
+    /**
+     * The ID of the channel to broadcast to.
+     *
+     * @see cobaltumsmp.discordbot.command.BroadcastCommand
+     */
     public static final long CHANNEL_ID_BROADCAST;
+    /**
+     * The ID of the {@linkplain cobaltumsmp.discordbot.Roles#DEV Developer} role.
+     */
     public static final long ROLE_ID_DEV;
+    /**
+     * The ID of the {@linkplain cobaltumsmp.discordbot.Roles#STAFF Staff} role.
+     */
     public static final long ROLE_ID_STAFF;
+    /**
+     * The ID of the {@linkplain cobaltumsmp.discordbot.Roles#MOD Moderator} role.
+     */
     public static final long ROLE_ID_MOD;
+    /**
+     * The ID of the {@linkplain cobaltumsmp.discordbot.Roles#ADMIN Administrator} role.
+     */
     public static final long ROLE_ID_ADMIN;
+    /**
+     * The ID of the {@linkplain cobaltumsmp.discordbot.Roles#OWNER Owner} role.
+     */
     public static final long ROLE_ID_OWNER;
 
     static {

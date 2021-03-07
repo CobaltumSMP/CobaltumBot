@@ -1,6 +1,11 @@
 package cobaltumsmp.discordbot;
 
-import cobaltumsmp.discordbot.command.*;
+import cobaltumsmp.discordbot.command.BroadcastCommand;
+import cobaltumsmp.discordbot.command.Command;
+import cobaltumsmp.discordbot.command.EchoCommand;
+import cobaltumsmp.discordbot.command.HelpCommand;
+import cobaltumsmp.discordbot.command.PingCommand;
+import cobaltumsmp.discordbot.command.SetPresenceCommand;
 import cobaltumsmp.discordbot.event.MessageListener;
 import cobaltumsmp.discordbot.module.Module;
 import cobaltumsmp.discordbot.module.RconModule;
@@ -21,10 +26,14 @@ import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * The main class for the CobaltumBot.
+ */
 public class Main {
     public static final Logger LOGGER = LogManager.getLogger(Main.class);
     private static final ExecutorService THREAD_POOL = Executors.newCachedThreadPool();
-    private static final ListeningExecutorService SERVICE = MoreExecutors.listeningDecorator(THREAD_POOL);
+    private static final ListeningExecutorService SERVICE =
+            MoreExecutors.listeningDecorator(THREAD_POOL);
     /**
      * The commands, stored with command name as key and the command as value.
      */
@@ -37,13 +46,17 @@ public class Main {
     public static final List<Long> EXCLUSIVE_CHANNELS = new ArrayList<>();
     private static DiscordApi api;
 
+    /**
+     * Entrypoint for the bot.
+     */
     public static void main(String[] args) {
         String token = "";
         try {
             String tokenEnv = System.getenv("DISCORD_TOKEN");
             token = tokenEnv != null && !tokenEnv.equals("") ? tokenEnv : args[0];
         } catch (ArrayIndexOutOfBoundsException e) {
-            LOGGER.error("You must provide a discord token either with an argument or a system variable!");
+            LOGGER.error("You must provide a discord token either with an argument or a "
+                            + "system variable!");
             System.exit(-1);
         }
 

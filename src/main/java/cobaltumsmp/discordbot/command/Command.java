@@ -6,6 +6,9 @@ import org.javacord.api.entity.message.Message;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * An interface to provide common methods for all the commands.
+ */
 public interface Command {
     String name();
 

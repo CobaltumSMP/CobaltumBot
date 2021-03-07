@@ -27,6 +27,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Setup a new {@link TicketConfig}.
+ */
 public class SetupCommand extends Module.ModuleCommand<TicketSystemModule> {
     public SetupCommand(TicketSystemModule module) {
         super(module);
@@ -103,7 +106,8 @@ public class SetupCommand extends Module.ModuleCommand<TicketSystemModule> {
                         + " Please fix this.");
                 return;
             } else if (!messageChannel.canYouAddNewReactions()) {
-                message.getChannel().sendMessage("I can't add new reactions at the provided channel."
+                message.getChannel().sendMessage(
+                        "I can't add new reactions at the provided channel."
                         + " Please fix this.");
                 return;
             }
@@ -144,18 +148,22 @@ public class SetupCommand extends Module.ModuleCommand<TicketSystemModule> {
                 }
             }
         }
-        List<String> strRoles = roles.stream().mapToLong(Role::getId).mapToObj(Long::toString).collect(Collectors.toList());
 
         // The message to listen for reactions
         Message mainMsg;
         try {
-            mainMsg = messageChannel.sendMessage(new EmbedBuilder().setDescription("React to this message with "
-                    + EmojiParser.parseToUnicode(":ticket:") + " to open a ticket")).join();
+            mainMsg = messageChannel.sendMessage(new EmbedBuilder().setDescription(
+                    "React to this message with "
+                    + EmojiParser.parseToUnicode(":ticket:") + " to open a ticket.")).join();
         } catch (Exception e) {
             TicketSystemModule.LOGGER.error(e);
-            message.getChannel().sendMessage("There was an error trying to send the message to the provided channel");
+            message.getChannel().sendMessage(
+                    "There was an error trying to send the message to the provided channel.");
             return;
         }
+
+        List<String> strRoles = roles.stream().mapToLong(Role::getId).mapToObj(Long::toString)
+                .collect(Collectors.toList());
 
         ObjectContext context = this.module.getContext();
 
@@ -173,20 +181,25 @@ public class SetupCommand extends Module.ModuleCommand<TicketSystemModule> {
         mainMsg.addReaction(EmojiParser.parseToUnicode(":ticket:"));
     }
 
-    private void setupPermissions(TextChannel commandChannel, ChannelCategory ticketCategory, ChannelCategory closedTicketCategory, List<Role> globalAccessRoles) {
+    private void setupPermissions(TextChannel commandChannel, ChannelCategory ticketCategory,
+                                  ChannelCategory closedTicketCategory,
+                                  List<Role> globalAccessRoles) {
         Permissions ticketCategorySelfPermissions = new PermissionsBuilder().setAllowed(
-                PermissionType.READ_MESSAGES, PermissionType.SEND_MESSAGES, PermissionType.MANAGE_MESSAGES,
-                PermissionType.MANAGE_CHANNELS, PermissionType.ADD_REACTIONS, PermissionType.MANAGE_ROLES).build();
-        Permissions ticketCategoryRolePermissions = new PermissionsBuilder().setAllowed(PermissionType.READ_MESSAGES,
-                PermissionType.SEND_MESSAGES).build();
-        Permissions closedTicketCategorySelfPermissions = new PermissionsBuilder().setAllowed(PermissionType.MANAGE_CHANNELS,
-                PermissionType.MANAGE_ROLES).build();
+                PermissionType.READ_MESSAGES, PermissionType.SEND_MESSAGES,
+                PermissionType.MANAGE_MESSAGES, PermissionType.MANAGE_CHANNELS,
+                PermissionType.ADD_REACTIONS, PermissionType.MANAGE_ROLES).build();
+        Permissions ticketCategoryRolePermissions = new PermissionsBuilder().setAllowed(
+                PermissionType.READ_MESSAGES, PermissionType.SEND_MESSAGES).build();
+        Permissions closedTicketCategorySelfPermissions = new PermissionsBuilder().setAllowed(
+                PermissionType.MANAGE_CHANNELS, PermissionType.MANAGE_ROLES).build();
 
         ServerChannelUpdater ticketCategoryUpdater = ticketCategory.createUpdater();
         ServerChannelUpdater closedTicketCategoryUpdater = closedTicketCategory.createUpdater();
 
-        ticketCategoryUpdater.addPermissionOverwrite(Main.getApi().getYourself(), ticketCategorySelfPermissions);
-        closedTicketCategoryUpdater.addPermissionOverwrite(Main.getApi().getYourself(), closedTicketCategorySelfPermissions);
+        ticketCategoryUpdater.addPermissionOverwrite(Main.getApi().getYourself(),
+                ticketCategorySelfPermissions);
+        closedTicketCategoryUpdater.addPermissionOverwrite(Main.getApi().getYourself(),
+                closedTicketCategorySelfPermissions);
 
         for (Role role : globalAccessRoles) {
             ticketCategoryUpdater.addPermissionOverwrite(role, ticketCategoryRolePermissions);
@@ -196,9 +209,11 @@ public class SetupCommand extends Module.ModuleCommand<TicketSystemModule> {
             ticketCategoryUpdater.update().join();
         } catch (Throwable t) {
             TicketSystemModule.LOGGER.warn(t);
-            new MessageBuilder().setContent("There was an error trying to set up the ticket category permissions."
+            new MessageBuilder().setContent(
+                    "There was an error trying to set up the ticket category permissions."
                     + " Please set them up yourself.\n").appendCode("",
-                    "CobaltumBot: View channels, Send Messages, Manage Messages, Manage Channels, Add Reactions, Manage Permissions\n"
+                    "CobaltumBot: View channels, Send Messages, Manage Messages,"
+                            + " Manage Channels, Add Reactions, Manage Permissions\n"
                     + "Provided roles: View channels, Send Messages").send(commandChannel);
         }
 
@@ -206,7 +221,8 @@ public class SetupCommand extends Module.ModuleCommand<TicketSystemModule> {
             closedTicketCategoryUpdater.update().join();
         } catch (Throwable t) {
             TicketSystemModule.LOGGER.warn(t);
-            new MessageBuilder().setContent("There was an error trying to set up the closed tickets category permissions."
+            new MessageBuilder().setContent(
+                    "There was an error trying to set up the closed tickets category permissions."
                     + " Please set them up yourself.\n").appendCode("",
                     "CobaltumBot: Manage Messages, Manage Permissions").send(commandChannel);
         }

@@ -1,5 +1,8 @@
 package cobaltumsmp.discordbot.module.versioncheck;
 
+/**
+ * {@link VersionCheckModule} config.
+ */
 public class Config {
     public static final String MINECRAFT_URL = System.getenv("VC_MINECRAFT_URL");
     public static final String JIRA_URL = System.getenv("VC_JIRA_URL");

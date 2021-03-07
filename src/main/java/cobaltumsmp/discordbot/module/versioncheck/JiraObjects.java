@@ -5,7 +5,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
+/**
+ * Object representations of JSON data from {@link Config#JIRA_URL}.
+ */
 public final class JiraObjects {
+    /**
+     * The full response of {@link Config#JIRA_URL}.
+     */
     public static final class Response {
         @JsonProperty
         public String expand;
@@ -43,6 +49,9 @@ public final class JiraObjects {
         public boolean archived;
     }
 
+    /**
+     * A single object from the {@linkplain Response#versions Response versions} array.
+     */
     public static final class Version {
         @JsonProperty
         public String self;
