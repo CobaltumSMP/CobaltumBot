@@ -9,9 +9,12 @@
 		 schema-update-strategy="org.apache.cayenne.access.dbsync.CreateIfNoSchemaStrategy">
 		<map-ref name="datamap"/>
 		<data-source>
+			<!--	A JDBC driver. If you are using a different one you will need to add the jar file with it to the program classpath	-->
 			<driver value="com.mysql.jdbc.Driver"/>
+			<!--	A JDBC url	-->
 			<url value="jdbc:mysql://localhost:3306/testbot3"/>
 			<connectionPool min="1" max="1"/>
+			<!--	You don't need to know my password	-->
 			<login userName="bot" password="youdontneedtoknowthis"/>
 		</data-source>
 	</node>

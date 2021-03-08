@@ -41,7 +41,9 @@ public class TicketSystemModule extends Module {
     @Override
     public void init() {
         try {
-            ServerRuntime cayenneRuntime = ServerRuntime.builder().addConfig("cayenne-project.xml")
+            String env = System.getenv("CAYENNE_CONFIG_FILE");
+            ServerRuntime cayenneRuntime = ServerRuntime.builder()
+                    .addConfig(env != null && !env.equals("") ? env : "cayenne-project.xml")
                     .build();
             context = cayenneRuntime.newContext();
             LOGGER.info("Connected to database");
