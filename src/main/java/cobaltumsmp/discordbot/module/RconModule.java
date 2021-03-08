@@ -27,18 +27,12 @@ import java.util.function.Consumer;
  */
 public class RconModule extends Module {
     private static final Logger LOGGER = LogManager.getLogger();
-    private static final InetSocketAddress SERVER_ADDRESS = new InetSocketAddress(Config.HOST,
-            Config.PORT);
     private static final EventLoopGroup EVENT_LOOPS = JRcon.newEventloops(3);
-    private final Bootstrap rconBootstrap;
+    private Bootstrap rconBootstrap;
     private JRconSession session;
     private TextChannel rconChannel;
     private boolean connected = false;
     private boolean authenticated = false;
-
-    public RconModule() {
-        this.rconBootstrap = JRcon.newBootstrap(SERVER_ADDRESS, EVENT_LOOPS);
-    }
 
     @Override
     public String name() {
@@ -47,6 +41,9 @@ public class RconModule extends Module {
 
     @Override
     public void init() {
+        InetSocketAddress serverAddress = new InetSocketAddress(Config.HOST, Config.PORT);
+        this.rconBootstrap = JRcon.newBootstrap(serverAddress, EVENT_LOOPS);
+
         Channel rconChannel = Main.getApi().getChannelById(Config.CHANNEL_ID_RCON).orElse(null);
 
         if (rconChannel == null || rconChannel.getType() != ChannelType.SERVER_TEXT_CHANNEL
@@ -97,7 +94,7 @@ public class RconModule extends Module {
             try {
                 port = Integer.parseInt(System.getenv("RCON_PORT"));
             } catch (NumberFormatException e) {
-                LOGGER.error("Invalid port provided.", e);
+                LOGGER.warn("Invalid port provided.", e);
                 port = 25575;
             }
             PORT = port;
