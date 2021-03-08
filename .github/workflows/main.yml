@@ -50,17 +50,17 @@ jobs:
         with:
           path: build/libs/*.jar
 
-#  deploy:
-#    name: Deploy to Heroku
-#    runs-on: ubuntu-20.04
-#    needs: build
-#
-#    steps:
-#    - name: Checkout repository
-#      uses: actions/checkout@v2
-#    - name: Deploy to Heroku
-#      uses: akhileshns/heroku-deploy@v3.8.9
-#      with:
-#        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-#        heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
-#        heroku_email: ${{ secrets.HEROKU_EMAIL }}
+  deploy:
+    name: Deploy to Heroku
+    runs-on: ubuntu-20.04
+    needs: build
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    - name: Deploy to Heroku
+      uses: akhileshns/heroku-deploy@v3.8.9
+      with:
+        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+        heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
+        heroku_email: ${{ secrets.HEROKU_EMAIL }}
