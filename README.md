@@ -1,5 +1,6 @@
 # CobaltumBot
-This bot is built for a specific server in mind. If you want to use if, you can disable the modules you don't need
+This bot is built for a specific server in mind. If you want to use if, you can disable the modules you don't need.
+The bot depends on Java 11.
 
 ## Configuration
 The bot is configured via environment variables
