@@ -1,9 +1,12 @@
 package cobaltumsmp.discordbot;
 
 import org.javacord.api.entity.permission.Role;
+import org.javacord.api.entity.server.Server;
 import org.javacord.api.entity.user.User;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Roles for the main guild.
@@ -16,6 +19,7 @@ public enum Roles {
     ADMIN(BotConfig.ROLE_ID_ADMIN),
     OWNER(BotConfig.ROLE_ID_OWNER);
 
+    private static final List<Roles> noNullValues = Arrays.asList(values());
     private final Role role;
 
     Roles(long id) {
@@ -34,13 +38,18 @@ public enum Roles {
             return true;
         }
 
-        List<Role> roles = user.getRoles(Main.getApi().getServerById(BotConfig.GUILD_ID_MAIN)
-                .get());
+        Optional<Server> mainServer = Main.getApi().getServerById(BotConfig.GUILD_ID_MAIN);
+        if (mainServer.isEmpty()) {
+            Main.LOGGER.warn("The main guild ID is invalid. Some commands may not work.");
+            return false;
+        }
+
+        List<Role> roles = user.getRoles(mainServer.get());
 
         // Iterate from the lowest to higher role so having a higher role than the
         // requested one returns true as well
-        for (int i = role.ordinal(); i < Roles.values().length; ++i) {
-            if (roles.contains(Roles.values()[i].role)) {
+        for (int i = role.ordinal(); i < noNullValues.size(); ++i) {
+            if (roles.contains(noNullValues.get(i).role)) {
                 return true;
             }
         }
@@ -49,6 +58,13 @@ public enum Roles {
     }
 
     private static Role getRoleById(long id) {
-        return Main.getApi().getRoleById(id).get();
+        return Main.getApi().getRoleById(id).orElse(null);
+    }
+
+    static {
+        if (noNullValues.removeIf(roles -> roles.role == null)) {
+            Main.LOGGER.warn(
+                    "One (or more) of the role IDs is invalid. Some commands may not work.");
+        }
     }
 }

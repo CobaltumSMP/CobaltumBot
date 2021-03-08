@@ -54,21 +54,32 @@ public class BroadcastCommand implements Command {
 
     @Override
     public void execute(Message message, List<String> args) {
-        Optional<Channel> optionalChannel = Main.getApi()
+        Optional<Channel> channelOptional = Main.getApi()
                 .getChannelById(BotConfig.CHANNEL_ID_BROADCAST);
 
-        optionalChannel.ifPresent(channel -> {
-            TextChannel textChannel = channel.asTextChannel().get();
-            String content = String.join(" ", args);
+        if (channelOptional.isPresent()) {
+            Optional<TextChannel> textChannelOptional = channelOptional.get().asTextChannel();
+            if (textChannelOptional.isPresent()) {
+                TextChannel textChannel = textChannelOptional.get();
+                String content = String.join(" ", args);
 
-            if (message.getAttachments().size() > 0) {
-                MessageBuilder msgBuilder = new MessageBuilder().append(content);
-                message.getAttachments().forEach(messageAttachment ->
-                        msgBuilder.addAttachment(messageAttachment.getUrl()));
-                msgBuilder.send(textChannel);
+                if (message.getAttachments().size() > 0) {
+                    MessageBuilder msgBuilder = new MessageBuilder().append(content);
+                    message.getAttachments().forEach(messageAttachment ->
+                            msgBuilder.addAttachment(messageAttachment.getUrl()));
+                    msgBuilder.send(textChannel);
+                } else {
+                    textChannel.sendMessage(content);
+                }
             } else {
-                textChannel.sendMessage(content);
+                message.getChannel().sendMessage(
+                        "The configured channel for broadcasts is not of type 'text'.");
+                Main.LOGGER.warn("The configured channel for broadcasts is not of type 'text'.");
             }
-        });
+        } else {
+            message.getChannel().sendMessage(
+                    "The configured channel for broadcasts could not be found.");
+            Main.LOGGER.warn("The configured channel for broadcasts could not be found.");
+        }
     }
 }

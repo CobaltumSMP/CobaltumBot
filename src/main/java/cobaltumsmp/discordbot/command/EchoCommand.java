@@ -1,5 +1,6 @@
 package cobaltumsmp.discordbot.command;
 
+import cobaltumsmp.discordbot.Main;
 import org.javacord.api.entity.channel.TextChannel;
 import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.MessageBuilder;
@@ -41,6 +42,14 @@ public class EchoCommand implements Command {
                 && message.getMentionedChannels().size() >= 1
                 && args.get(0).matches("<#[\\d]+>")) {
             channel = message.getMentionedChannels().get(0);
+
+            if (message.getUserAuthor().isEmpty()) {
+                message.getChannel().sendMessage("There was an unexpected error.");
+                Main.LOGGER.error(new IllegalStateException(
+                        "Message#getUserAuthor was empty"));
+                return;
+            }
+
             if (!channel.canWrite(message.getUserAuthor().get())) {
                 message.getChannel().sendMessage(
                         "You don't have permission to send messages in that channel.");

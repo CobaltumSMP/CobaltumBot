@@ -82,6 +82,13 @@ public class MessageListener implements MessageCreateListener {
             return;
         }
 
+        if (message.getUserAuthor().isEmpty()) {
+            message.getChannel().sendMessage("There was an unexpected error.");
+            Main.LOGGER.error(new IllegalStateException(
+                    "Message#getUserAuthor was empty"));
+            return;
+        }
+
         if (!Roles.checkRoles(message.getUserAuthor().get(), command.roleRequired())) {
             message.getChannel().sendMessage("You don't have the role needed to do this.");
             return;

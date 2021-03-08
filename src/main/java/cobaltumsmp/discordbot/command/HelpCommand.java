@@ -34,6 +34,13 @@ public class HelpCommand implements Command {
 
         List<String> helpList = new ArrayList<>();
 
+        if (message.getUserAuthor().isEmpty()) {
+            message.getChannel().sendMessage("There was an unexpected error.");
+            Main.LOGGER.error(new IllegalStateException(
+                    "Message#getUserAuthor was empty"));
+            return;
+        }
+
         // Show only the commands the author has access to
         User author = message.getUserAuthor().get();
         Main.COMMANDS.values().stream()

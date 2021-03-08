@@ -60,6 +60,11 @@ public class Main {
             System.exit(-1);
         }
 
+        if (BotConfig.PREFIX == null || BotConfig.PREFIX.equals("")) {
+            LOGGER.error("Please set a valid prefix with the environment variable 'PREFIX'");
+            System.exit(-1);
+        }
+
         loadCommands();
         int eventCount = loadEventListeners();
         LOGGER.info("Loaded {} commands and {} events", COMMANDS.size(), eventCount);
