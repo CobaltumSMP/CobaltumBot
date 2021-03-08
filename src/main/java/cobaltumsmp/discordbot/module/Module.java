@@ -26,8 +26,16 @@ public abstract class Module {
         return this.enabled;
     }
 
+    public final void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
     public final boolean isLoaded() {
         return this.loaded;
+    }
+
+    public final String getId() {
+        return this.name().toLowerCase().replace(" ", "_");
     }
 
     /**

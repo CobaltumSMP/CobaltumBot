@@ -112,6 +112,7 @@ public class Main {
     }
 
     private static void installModule(Module module, DiscordApi discordApi) {
+        disableModuleFromEnv(module);
         if (!module.isEnabled()) {
             return;
         }
@@ -127,6 +128,13 @@ public class Main {
     private static void initModules() {
         for (Module module : MODULES.values()) {
             SERVICE.submit(module::init);
+        }
+    }
+
+    private static void disableModuleFromEnv(Module module) {
+        String env = System.getenv("MODULE_" + module.getId().toUpperCase() + "_ENABLED");
+        if (env != null && !env.equals("")) {
+            module.setEnabled(!env.equalsIgnoreCase("false"));
         }
     }
 
