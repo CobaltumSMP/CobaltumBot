@@ -39,3 +39,9 @@ application {
     // Define the main class for the application.
     mainClassName = 'cobaltumsmp.discordbot.Main'
 }
+
+jar {
+    manifest {
+        attributes 'Multi-Release': 'true'
+    }
+}
