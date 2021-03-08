@@ -9,7 +9,7 @@ public class BotConfig {
     /**
      * The bot prefix.
      */
-    public static final String PREFIX = System.getenv("BOT_PREFIX");
+    public static final String PREFIX = System.getenv("PREFIX");
     /**
      * The ID of the main guild.
      */
