@@ -137,12 +137,10 @@ public class Main {
     }
 
     private static void disableModuleFromEnv(Module module) {
-        String env = System.getenv("MODULE_" + module.getId().toUpperCase() + "_ENABLED");
-        if (env != null && !env.equals("")) {
-            if (env.equalsIgnoreCase("false")) {
-                module.setEnabled(false);
-                LOGGER.info("Module {} has been disabled via env variable.", module.name());
-            }
+        String key = "MODULE_" + module.getId().toUpperCase() + "_ENABLED";
+        if (!Util.isSystemEnvEmpty(key) && System.getenv(key).equalsIgnoreCase("false")) {
+            module.setEnabled(false);
+            LOGGER.info("Module '{}' has been disabled via env variable.", module.name());
         }
     }
 
