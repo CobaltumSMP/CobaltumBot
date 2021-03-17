@@ -26,6 +26,7 @@ dependencies {
     implementation 'org.apache.httpcomponents.client5:httpclient5:5.0.3'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.9.0'
     implementation 'com.google.guava:guava:29.0-jre'
+    implementation 'org.jline:jline:3.19.0'
 
     // RCON
     implementation files('libs/JRcon-2.0.jar')
