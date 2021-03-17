@@ -16,7 +16,7 @@ import org.apache.logging.log4j.message.Message;
  * The filter returns the onMatch if the provided system property is the provided value or "true" if
  * no value was provided.
  */
-@Plugin(name = "RegexPropertyFilter", category = Node.CATEGORY, elementType = Filter.ELEMENT_TYPE)
+@Plugin(name = "SystemPropertyFilter", category = Node.CATEGORY, elementType = Filter.ELEMENT_TYPE)
 public class SystemPropertyFilter extends AbstractFilter {
     private final String propertyKey;
     private final String value;
