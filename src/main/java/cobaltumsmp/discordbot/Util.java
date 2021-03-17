@@ -1,9 +1,11 @@
 package cobaltumsmp.discordbot;
 
+import org.javacord.api.entity.channel.Channel;
 import org.javacord.api.entity.channel.TextChannel;
 import org.javacord.api.entity.message.Message;
 
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Utility methods.
@@ -26,6 +28,30 @@ public class Util {
         if (message.getUserAuthor().isEmpty()) {
             Main.LOGGER.error(new IllegalStateException(
                     "Message#getUserAuthor was empty"));
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Checks if {@link org.javacord.api.DiscordApi#getChannelById}
+     * {@linkplain java.util.Optional#isEmpty() is empty}.
+     */
+    public static boolean isChannelByIdEmpty(Optional<Channel> channel) {
+        if (channel.isEmpty()) {
+            Main.LOGGER.error(new IllegalStateException("DiscordApi#getChannelById was empty"));
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Checks if {@link Channel#asTextChannel()}
+     * {@linkplain java.util.Optional#isEmpty() is empty}.
+     */
+    public static boolean isTextChannelEmpty(Channel channel) {
+        if (channel.asTextChannel().isEmpty()) {
+            Main.LOGGER.error(new IllegalStateException("Channel#asTextChannel was empty"));
             return true;
         }
         return false;

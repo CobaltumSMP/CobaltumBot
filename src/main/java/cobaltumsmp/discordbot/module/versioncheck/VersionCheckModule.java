@@ -1,6 +1,7 @@
 package cobaltumsmp.discordbot.module.versioncheck;
 
 import cobaltumsmp.discordbot.Main;
+import cobaltumsmp.discordbot.Util;
 import cobaltumsmp.discordbot.module.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
@@ -11,6 +12,7 @@ import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
 import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.javacord.api.entity.channel.Channel;
 import org.javacord.api.entity.channel.TextChannel;
 
 import java.io.IOException;
@@ -31,8 +33,8 @@ public class VersionCheckModule extends Module {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final ScheduledExecutorService THREAD_POOL = Executors.newScheduledThreadPool(3);
     private final CloseableHttpAsyncClient httpClient = HttpAsyncClients.createDefault();
-    private TextChannel mcUpdatesChannel;
-    private TextChannel jiraUpdatesChannel;
+    private TextChannel mcUpdatesChannel = null;
+    private TextChannel jiraUpdatesChannel = null;
     private List<MinecraftObjects.Version> minecraftVersions;
     private List<JiraObjects.Version> jiraVersions;
     private boolean checking = false;
@@ -44,23 +46,27 @@ public class VersionCheckModule extends Module {
 
     @Override
     public void init() {
-        try {
-            //noinspection ConstantConditions
-            this.mcUpdatesChannel = Main.getApi().getChannelById(Config.CHANNEL_ID_MC_UPDATES)
-                    .orElse(null).asTextChannel().orElse(null);
-        } catch (NullPointerException e) {
-            this.mcUpdatesChannel = null;
-        }
-        try {
-            //noinspection ConstantConditions
-            this.jiraUpdatesChannel = Main.getApi().getChannelById(Config.CHANNEL_ID_JIRA_UPDATES)
-                    .orElse(null).asTextChannel().orElse(null);
-        } catch (NullPointerException e) {
-            this.jiraUpdatesChannel = null;
+        Optional<Channel> chn;
+        Channel chn1;
+
+        // Get the MC updates channel
+        if (Util.isChannelByIdEmpty((chn
+                = Main.getApi().getChannelById(Config.CHANNEL_ID_MC_UPDATES)))
+                || Util.isTextChannelEmpty((chn1 = chn.get()))) {
+            LOGGER.warn("The Minecraft updates channel ('{}') is invalid.",
+                    Config.CHANNEL_ID_MC_UPDATES);
+        } else {
+            this.mcUpdatesChannel = chn1.asTextChannel().get();
         }
 
-        if (this.mcUpdatesChannel == null || this.jiraUpdatesChannel == null) {
-            LOGGER.warn("One (or both) of the updates channel is invalid.");
+        // Get the Jira updates channel
+        if (Util.isChannelByIdEmpty((chn
+                = Main.getApi().getChannelById(Config.CHANNEL_ID_JIRA_UPDATES)))
+                || Util.isTextChannelEmpty((chn1 = chn.get()))) {
+            LOGGER.warn("The Jira updates channel ('{}') is invalid.",
+                    Config.CHANNEL_ID_JIRA_UPDATES);
+        } else {
+            this.jiraUpdatesChannel = chn1.asTextChannel().get();
         }
 
         this.checking = true;
