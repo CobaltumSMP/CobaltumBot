@@ -53,6 +53,7 @@ public class RconModule extends Module {
         }
 
         this.rconChannel = rconChannel.asTextChannel().get();
+        Main.EXCLUSIVE_CHANNELS.add(this.rconChannel.getId());
 
         this.connect().addListener(future -> {
             if (future.isSuccess()) {
