@@ -2,6 +2,7 @@ package cobaltumsmp.discordbot.command;
 
 import cobaltumsmp.discordbot.Main;
 import cobaltumsmp.discordbot.Roles;
+import cobaltumsmp.discordbot.Util;
 import com.google.common.base.Strings;
 import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.embed.EmbedBuilder;
@@ -34,10 +35,8 @@ public class HelpCommand implements Command {
 
         List<String> helpList = new ArrayList<>();
 
-        if (message.getUserAuthor().isEmpty()) {
-            message.getChannel().sendMessage("There was an unexpected error.");
-            Main.LOGGER.error(new IllegalStateException(
-                    "Message#getUserAuthor was empty"));
+        if (Util.isMessageUserAuthorEmpty(message)) {
+            Util.unexpectedErrorMessageResponse(message);
             return;
         }
 

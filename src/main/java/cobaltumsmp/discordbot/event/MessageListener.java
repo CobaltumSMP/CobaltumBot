@@ -3,6 +3,7 @@ package cobaltumsmp.discordbot.event;
 import cobaltumsmp.discordbot.BotConfig;
 import cobaltumsmp.discordbot.Main;
 import cobaltumsmp.discordbot.Roles;
+import cobaltumsmp.discordbot.Util;
 import cobaltumsmp.discordbot.command.Command;
 import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.MessageAttachment;
@@ -82,10 +83,8 @@ public class MessageListener implements MessageCreateListener {
             return;
         }
 
-        if (message.getUserAuthor().isEmpty()) {
-            message.getChannel().sendMessage("There was an unexpected error.");
-            Main.LOGGER.error(new IllegalStateException(
-                    "Message#getUserAuthor was empty"));
+        if (Util.isMessageUserAuthorEmpty(message)) {
+            Util.unexpectedErrorMessageResponse(message);
             return;
         }
 

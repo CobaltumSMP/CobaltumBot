@@ -1,5 +1,6 @@
 package cobaltumsmp.discordbot.module.ticketsystem.command;
 
+import cobaltumsmp.discordbot.Util;
 import cobaltumsmp.discordbot.module.Module;
 import cobaltumsmp.discordbot.module.ticketsystem.TicketConfig;
 import cobaltumsmp.discordbot.module.ticketsystem.TicketSystemModule;
@@ -55,10 +56,8 @@ public class OpenCommand extends Module.ModuleCommand<TicketSystemModule> {
         }
 
         TicketConfig config = this.module.getConfigs().get(0);
-        if (message.getUserAuthor().isEmpty()) {
-            message.getChannel().sendMessage("There was an unexpected error.");
-            TicketSystemModule.LOGGER.error(new IllegalStateException(
-                    "Message#getUserAuthor was empty"));
+        if (Util.isMessageUserAuthorEmpty(message)) {
+            Util.unexpectedErrorMessageResponse(message);
             return;
         }
 

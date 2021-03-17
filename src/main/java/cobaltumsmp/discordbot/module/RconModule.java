@@ -2,6 +2,7 @@ package cobaltumsmp.discordbot.module;
 
 import cobaltumsmp.discordbot.Main;
 import cobaltumsmp.discordbot.Roles;
+import cobaltumsmp.discordbot.Util;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.EventLoopGroup;
@@ -184,6 +185,11 @@ public class RconModule extends Module {
 
             if (!RconModule.this.isLoaded()) {
                 message.getChannel().sendMessage("The module this depends on is not loaded.");
+                return;
+            }
+
+            if (Util.isMessageUserAuthorEmpty(message)) {
+                Util.unexpectedErrorMessageResponse(message);
                 return;
             }
 
