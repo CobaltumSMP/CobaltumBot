@@ -45,3 +45,8 @@ The variables are only required if you don't disable the module
 | :----------------------------: | :------: | --------------------------------------------- |
 | `MODULE_TICKET_SYSTEM_ENABLED` | `false`  | If the Ticket system module should be enabled |
 | `CAYENNE_CONFIG_FILE`          | `false`  | A path to an Apache Cayenne project file to configure the tickets database. An example file is at src/main/test/resources/cayenne-oriject.xml |
+| `DB_URL`                       | `false`  | A JDBC url for the database. Not needed if you're using `CAYENNE_CONFIG_FILE` |
+| `DB_USER`                      | `false`  | The database user. Not needed if you're using `CAYENNE_CONFIG_FILE` |
+| `DB_PASS`                      | `false`  | The database password. Not needed if you're using `CAYENNE_CONFIG_FILE` |
+| `JDBC_DRIVER`                  | `false`  | A JDBC driver to use with a non mysql database. If you are using this, you must use the `DB` variables above and you must provide a jar file with the driver via `-classpath` java option when running the bot. |
+

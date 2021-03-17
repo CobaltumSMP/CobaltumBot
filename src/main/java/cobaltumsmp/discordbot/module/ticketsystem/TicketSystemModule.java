@@ -1,6 +1,7 @@
 package cobaltumsmp.discordbot.module.ticketsystem;
 
 import cobaltumsmp.discordbot.Main;
+import cobaltumsmp.discordbot.Util;
 import cobaltumsmp.discordbot.module.Module;
 import cobaltumsmp.discordbot.module.ticketsystem.command.OpenCommand;
 import cobaltumsmp.discordbot.module.ticketsystem.command.SetupCommand;
@@ -8,6 +9,7 @@ import com.google.common.base.Strings;
 import com.vdurmont.emoji.EmojiParser;
 import org.apache.cayenne.ObjectContext;
 import org.apache.cayenne.configuration.server.ServerRuntime;
+import org.apache.cayenne.configuration.server.ServerRuntimeBuilder;
 import org.apache.cayenne.query.ObjectSelect;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,6 +23,7 @@ import org.javacord.api.entity.message.embed.EmbedBuilder;
 import org.javacord.api.entity.user.User;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -41,10 +44,36 @@ public class TicketSystemModule extends Module {
     @Override
     public void init() {
         try {
-            String env = System.getenv("CAYENNE_CONFIG_FILE");
-            ServerRuntime cayenneRuntime = ServerRuntime.builder()
-                    .addConfig(env != null && !env.equals("") ? env : "cayenne-project.xml")
-                    .build();
+            // Configure Cayenne
+            ServerRuntimeBuilder runtimeBuilder = ServerRuntime.builder();
+            Map<String, String> env = System.getenv();
+            // Load configuration file if env var is present
+            if (!Util.isMapValueEmpty(env, "CAYENNE_CONFIG_FILE")) {
+                runtimeBuilder.addConfig(env.get("CAYENNE_CONFIG_FILE"));
+            // Load DB credentials if env var is present
+            } else if (!Util.isMapValueEmpty(env, "DB_URL")) {
+                if (Util.isMapValueEmpty(env, "DB_USER")) {
+                    LOGGER.error("Empty database user provided (env var 'DB_USER')");
+                    return;
+                }
+                if (Util.isMapValueEmpty(env, "DB_PASS")) {
+                    LOGGER.error("Empty database password provided (env var 'DB_PASS')");
+                    return;
+                }
+
+                runtimeBuilder.url(env.get("DB_URL"));
+                runtimeBuilder.user(env.get("DB_USER"));
+                runtimeBuilder.password(env.get("DB_PASS"));
+
+                if (!Util.isMapValueEmpty(env, "JDBC_DRIVER")) {
+                    runtimeBuilder.jdbcDriver(env.get("JDBC_DRIVER"));
+                }
+            // Fallback to cayenne project file
+            } else {
+                runtimeBuilder.addConfig("cayenne-project.xml");
+            }
+
+            ServerRuntime cayenneRuntime = runtimeBuilder.build();
             context = cayenneRuntime.newContext();
             LOGGER.info("Connected to database");
         } catch (Exception e) {
