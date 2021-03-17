@@ -1,4 +1,4 @@
-package cobaltumsmp.discordbot.misc;
+package cobaltumsmp.discordbot.logging;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Marker;
@@ -13,19 +13,19 @@ import org.apache.logging.log4j.core.filter.AbstractFilter;
 import org.apache.logging.log4j.message.Message;
 
 /**
- * The filter returns the onMatch if the provided system property is the provided value or "true" if
- * no value was provided.
+ * The filter returns the onMatch if the provided system property is the provided match or "true" if
+ * no match was provided.
  */
 @Plugin(name = "SystemPropertyFilter", category = Node.CATEGORY, elementType = Filter.ELEMENT_TYPE)
 public class SystemPropertyFilter extends AbstractFilter {
     private final String propertyKey;
-    private final String value;
+    private final String match;
 
-    private SystemPropertyFilter(String propertyKey, String value, Result onMatch,
+    private SystemPropertyFilter(String propertyKey, String match, Result onMatch,
                                  Result onMismatch) {
         super(onMatch, onMismatch);
         this.propertyKey = propertyKey;
-        this.value = value == null ? "true" : value;
+        this.match = match == null ? "true" : match;
     }
 
     @Override
@@ -50,7 +50,7 @@ public class SystemPropertyFilter extends AbstractFilter {
 
     private Result filter() {
         String value = System.getProperty(this.propertyKey);
-        return value != null && value.equalsIgnoreCase(this.value) ? this.onMatch : this.onMismatch;
+        return value != null && value.equalsIgnoreCase(this.match) ? this.onMatch : this.onMismatch;
     }
 
     /**
@@ -65,7 +65,7 @@ public class SystemPropertyFilter extends AbstractFilter {
     @PluginFactory
     public static SystemPropertyFilter createFilter(
             @PluginAttribute("propertyKey") String propertyKey,
-            @PluginAttribute("value") String value,
+            @PluginAttribute("match") String value,
             @PluginAttribute("onMatch") Result onMatch,
             @PluginAttribute("onMismatch") Result onMismatch
     ) {
