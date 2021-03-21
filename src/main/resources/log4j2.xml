@@ -11,7 +11,7 @@
         <RollingRandomAccessFile name="DebugFile" fileName="logs/debug.log" filePattern="logs/debug-%i.log.gz">
             <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level] (%logger) %msg%n"/>
             <!-- Don't log Apache HttpClient -->
-            <RegexFilter regex="org\.apache\.hc\.core5" onMatch="DENY" onMismatch="NEUTRAL"/>
+            <RegexLoggerFilter regex="org\.apache\.hc\.(?:core|client)5\..*" onMatch="DENY" onMismatch="NEUTRAL"/>
             <DefaultRolloverStrategy max="5" fileIndex="min"/>
             <Policies>
                 <SizeBasedTriggeringPolicy size="200MB"/>
