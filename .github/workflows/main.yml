@@ -14,18 +14,24 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
-    - name: Run Super-Linter
-      uses: github/super-linter@v3
-      env:
-        DEFAULT_BRANCH: master
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+# Replaced by Checkstyle for Java action. May use it if #1167 is solved and the bot uses more
+# than one language that should be linted
+#    - name: Run Super-Linter
+#      uses: github/super-linter@v3
+#      env:
+#        DEFAULT_BRANCH: master
+#        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#
 #        VALIDATE_ALL_CODEBASE: false
-        VALIDATE_YAML: false
-        VALIDATE_XML: false
-        VALIDATE_GROOVY: false
+#        VALIDATE_YAML: false
+#        VALIDATE_XML: false
+#        VALIDATE_GROOVY: false
 #        Ignore gradle wrapper files
-        FILTER_REGEX_EXCLUDE: gradlew|gradlew\.bat|gradle\/.*
+#        FILTER_REGEX_EXCLUDE: gradlew|gradlew\.bat|gradle\/.*
+    - name: Run Checkstyle for Java
+      uses: dbelyaev/action-checkstyle@master
+      with:
+        checkstyle_config: .github/linters/sun_checks.xml
 
   build:
     name: Build
