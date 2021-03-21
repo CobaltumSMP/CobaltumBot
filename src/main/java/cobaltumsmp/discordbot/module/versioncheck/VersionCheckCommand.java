@@ -32,7 +32,7 @@ public class VersionCheckCommand extends Module.ModuleCommand<VersionCheckModule
 
     @Override
     public void execute(Message message, List<String> args) {
-        if (!this.cantExecute(message.getChannel())) {
+        if (this.cantExecute(message.getChannel())) {
             return;
         }
 
