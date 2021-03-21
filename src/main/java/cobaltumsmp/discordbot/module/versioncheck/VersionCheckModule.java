@@ -76,6 +76,8 @@ public class VersionCheckModule extends Module {
 
         this.minecraftVersions = this.getMinecraftVersions();
         this.jiraVersions = this.getJiraVersions();
+        LOGGER.info("Minecraft | Total versions: {}", this.minecraftVersions.size());
+        LOGGER.info("Jira      | Total versions: {}", this.jiraVersions.size());
 
         this.checking = false;
 
@@ -131,9 +133,9 @@ public class VersionCheckModule extends Module {
         Optional<MinecraftObjects.Version> newVersion = versions.stream().filter(v ->
                 !this.minecraftVersions.contains(v)).findFirst();
 
-        LOGGER.info("Minecraft | New version: {}",
+        LOGGER.debug("Minecraft | New version: {}",
                 newVersion.isEmpty() ? "N/A" : newVersion.get().id);
-        LOGGER.info("Minecraft | Total versions: {}", versions.size());
+        LOGGER.debug("Minecraft | Total versions: {}", versions.size());
 
         this.minecraftVersions = versions;
 
@@ -147,9 +149,9 @@ public class VersionCheckModule extends Module {
         Optional<JiraObjects.Version> newVersion = versions.stream().filter(v ->
                 !this.jiraVersions.contains(v)).findFirst();
 
-        LOGGER.info("Jira | New version: {}",
+        LOGGER.debug("Jira      | New version: {}",
                 newVersion.isEmpty() ? "N/A" : newVersion.get().name);
-        LOGGER.info("Jira | Total versions: {}", versions.size());
+        LOGGER.debug("Jira      | Total versions: {}", versions.size());
 
         this.jiraVersions = versions;
 
