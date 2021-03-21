@@ -32,7 +32,7 @@ import java.util.concurrent.Executors;
 public class Main {
     public static final Logger LOGGER = LogManager.getLogger(Main.class);
     private static final ExecutorService THREAD_POOL = Executors.newCachedThreadPool();
-    private static final ListeningExecutorService SERVICE =
+    public static final ListeningExecutorService SERVICE =
             MoreExecutors.listeningDecorator(THREAD_POOL);
     /**
      * The commands, stored with command name as key and the command as value.
