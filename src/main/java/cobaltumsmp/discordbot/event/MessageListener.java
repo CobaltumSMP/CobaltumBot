@@ -64,15 +64,22 @@ public class MessageListener implements MessageCreateListener {
             }
         }
 
+        Main.LOGGER.debug("{}: Executing command '{}'.", message.getAuthor().getDiscriminatedName(),
+                command.name());
+
         List<MessageAttachment> attachments = message.getAttachments();
         if (command.useArgs() > 0 && args.size() <= 0
                 && !(command.countAttachmentsAsArgs() && attachments.size() > 0)) {
             message.getChannel().sendMessage("You must provide arguments.");
+            Main.LOGGER.debug("{}: Didn't provide args for '{}'.",
+                    message.getAuthor().getDiscriminatedName(), command.name());
             return;
         } else if (command.useArgs() > 0 && args.size() < command.useArgs()
                 && !(command.countAttachmentsAsArgs() && attachments.size() >= command.useArgs())) {
             message.getChannel().sendMessage(String.format(
                     "You must provide at least %d argument(s).", command.useArgs()));
+            Main.LOGGER.debug("{}: Didn't provide enough arguments for '{}'.",
+                    message.getAuthor().getDiscriminatedName(), command.name());
             return;
         }
 
@@ -80,6 +87,8 @@ public class MessageListener implements MessageCreateListener {
                 || (command.mainGuild()
                 && message.getServer().get().getId() != BotConfig.GUILD_ID_MAIN)) {
             message.getChannel().sendMessage("You can't do that here.");
+            Main.LOGGER.debug("{}: Tried to execute '{}' in a wrong channel.",
+                    message.getAuthor().getDiscriminatedName(), command.name());
             return;
         }
 
@@ -90,9 +99,13 @@ public class MessageListener implements MessageCreateListener {
 
         if (!Roles.checkRoles(message.getUserAuthor().get(), command.roleRequired())) {
             message.getChannel().sendMessage("You don't have the role needed to do this.");
+            Main.LOGGER.debug("{}: Didn't have the needed role for '{}'.",
+                    message.getAuthor().getDiscriminatedName(), command.name());
             return;
         }
 
         command.execute(message, args);
+        Main.LOGGER.debug("{}: Executed command '{}'.", message.getAuthor().getDiscriminatedName(),
+                command.name());
     }
 }
