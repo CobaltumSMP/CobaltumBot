@@ -12,6 +12,7 @@ import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
 import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.javacord.api.DiscordApi;
 import org.javacord.api.entity.channel.Channel;
 import org.javacord.api.entity.channel.TextChannel;
 
@@ -23,6 +24,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * A module that constantly checks the configured URLs ({@link Config#JIRA_URL}
@@ -100,6 +102,11 @@ public class VersionCheckModule extends Module {
 
         this.loaded = true;
         LOGGER.info("Module ready.");
+    }
+
+    @Override
+    public Consumer<DiscordApi> getInstallFunction() {
+        return discordApi -> Main.loadCommand(new VersionCheckCommand(this));
     }
 
     protected void checkUpdates() {
