@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
  * and {@link Config#MINECRAFT_URL}) for new versions.
  */
 public class VersionCheckModule extends Module {
-    private static final Logger LOGGER = LogManager.getLogger();
+    protected static final Logger LOGGER = LogManager.getLogger();
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final ScheduledExecutorService THREAD_POOL = Executors.newScheduledThreadPool(3);
     private final CloseableHttpAsyncClient httpClient = HttpAsyncClients.createDefault();
@@ -100,7 +100,7 @@ public class VersionCheckModule extends Module {
         LOGGER.info("Module ready.");
     }
 
-    private void checkUpdates() {
+    protected void checkUpdates() {
         if (this.checking) {
             LOGGER.warn("A version check is already running! Skipping version check.");
             return;
