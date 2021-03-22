@@ -1,9 +1,6 @@
 name: Lint, build and deploy
 
-on:
-  push:
-    branches:
-      - master
+on: push
 
 jobs:
   lint:
@@ -60,7 +57,7 @@ jobs:
     name: Deploy to Heroku
     runs-on: ubuntu-20.04
     needs: build
-    if: ${{ ! startsWith(github.event.head_commit.message, '[nodeploy]') }}
+    if: ${{ github.ref == 'refs/heads/master' && ! startsWith(github.event.head_commit.message, '[nodeploy]') }}
 
     steps:
     - name: Checkout repository
