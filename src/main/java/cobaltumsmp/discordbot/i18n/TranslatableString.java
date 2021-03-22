@@ -6,7 +6,7 @@ package cobaltumsmp.discordbot.i18n;
 public class TranslatableString {
     public final String translationKey;
 
-    public TranslatableString(String translationKey) {
+    protected TranslatableString(String translationKey) {
         this.translationKey = translationKey;
     }
 
