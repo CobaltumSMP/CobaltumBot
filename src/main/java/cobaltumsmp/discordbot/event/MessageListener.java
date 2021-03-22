@@ -5,6 +5,7 @@ import cobaltumsmp.discordbot.Main;
 import cobaltumsmp.discordbot.Roles;
 import cobaltumsmp.discordbot.Util;
 import cobaltumsmp.discordbot.command.Command;
+import cobaltumsmp.discordbot.i18n.I18nUtil;
 import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.MessageAttachment;
 import org.javacord.api.event.message.MessageCreateEvent;
@@ -59,7 +60,7 @@ public class MessageListener implements MessageCreateListener {
 
                 if (command == null) {
                     // If command can't be found return
-                    message.getChannel().sendMessage(String.format("'%s' is not a valid command.",
+                    message.getChannel().sendMessage(I18nUtil.formatKey("command.invalid_command",
                             commandStr));
                     return;
                 }
@@ -71,15 +72,15 @@ public class MessageListener implements MessageCreateListener {
             List<MessageAttachment> attachments = message.getAttachments();
             if (command.useArgs() > 0 && args.size() <= 0
                     && !(command.countAttachmentsAsArgs() && attachments.size() > 0)) {
-                message.getChannel().sendMessage("You must provide arguments.");
+                message.getChannel().sendMessage(I18nUtil.key("command.no_args"));
                 Main.LOGGER.debug("{}: Didn't provide args for '{}'.",
                         message.getAuthor().getDiscriminatedName(), command.name());
                 return;
             } else if (command.useArgs() > 0 && args.size() < command.useArgs()
                     && !(command.countAttachmentsAsArgs()
                     && attachments.size() >= command.useArgs())) {
-                message.getChannel().sendMessage(String.format(
-                        "You must provide at least %d argument(s).", command.useArgs()));
+                message.getChannel().sendMessage(I18nUtil.formatKey("command.not_enough_args",
+                        command.useArgs()));
                 Main.LOGGER.debug("{}: Didn't provide enough arguments for '{}'.",
                         message.getAuthor().getDiscriminatedName(), command.name());
                 return;
@@ -88,7 +89,7 @@ public class MessageListener implements MessageCreateListener {
             if ((command.useOnGuild() && message.getServer().isEmpty())
                     || (command.mainGuild()
                     && message.getServer().get().getId() != BotConfig.GUILD_ID_MAIN)) {
-                message.getChannel().sendMessage("You can't do that here.");
+                message.getChannel().sendMessage(I18nUtil.key("command.wrong_channel"));
                 Main.LOGGER.debug("{}: Tried to execute '{}' in a wrong channel.",
                         message.getAuthor().getDiscriminatedName(), command.name());
                 return;
@@ -100,7 +101,7 @@ public class MessageListener implements MessageCreateListener {
             }
 
             if (!Roles.checkRoles(message.getUserAuthor().get(), command.roleRequired())) {
-                message.getChannel().sendMessage("You don't have the role needed to do this.");
+                message.getChannel().sendMessage(I18nUtil.key("command.no_role"));
                 Main.LOGGER.debug("{}: Didn't have the needed role for '{}'.",
                         message.getAuthor().getDiscriminatedName(), command.name());
                 return;

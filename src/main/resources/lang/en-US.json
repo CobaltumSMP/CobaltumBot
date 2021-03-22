@@ -9,5 +9,10 @@
     "command.ping.description": "Pong! Get the bot ping.",
     "command.setpresence.description": "Set the bot presence.",
     "command.setpresence.invalid_type": "%s is not a valid presence type. Presence types: \n%s",
-    "command.setpresence.set": "Presence set to '%s **%s**'"
+    "command.setpresence.set": "Presence set to '%s **%s**'",
+    "command.invalid_command": "'%s' is not a valid command.",
+    "command.no_args": "You must provide arguments.",
+    "command.no_role": "You don't have the role needed to do this.",
+    "command.not_enough_args": "You must provide at least %d argument(s).",
+    "command.wrong_channel": "You can't do that here."
 }
