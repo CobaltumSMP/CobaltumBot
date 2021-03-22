@@ -3,6 +3,7 @@ package cobaltumsmp.discordbot.command;
 import cobaltumsmp.discordbot.BotConfig;
 import cobaltumsmp.discordbot.Main;
 import cobaltumsmp.discordbot.Roles;
+import cobaltumsmp.discordbot.i18n.I18nUtil;
 import org.javacord.api.entity.channel.Channel;
 import org.javacord.api.entity.channel.TextChannel;
 import org.javacord.api.entity.message.Message;
@@ -28,7 +29,7 @@ public class BroadcastCommand implements Command {
     @Override
     public String[] description() {
         return new String[]{
-            "Like echo, but sends the message to the configured broadcast channel."
+                I18nUtil.key("command.broadcast.description")
         };
     }
 
@@ -73,12 +74,11 @@ public class BroadcastCommand implements Command {
                 }
             } else {
                 message.getChannel().sendMessage(
-                        "The configured channel for broadcasts is not of type 'text'.");
+                        I18nUtil.key("command.broadcast.channel_invalid_type"));
                 Main.LOGGER.warn("The configured channel for broadcasts is not of type 'text'.");
             }
         } else {
-            message.getChannel().sendMessage(
-                    "The configured channel for broadcasts could not be found.");
+            message.getChannel().sendMessage(I18nUtil.key("command.broadcast.channel_not_found"));
             Main.LOGGER.warn("The configured channel for broadcasts could not be found.");
         }
     }

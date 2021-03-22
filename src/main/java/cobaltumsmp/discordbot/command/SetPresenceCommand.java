@@ -2,6 +2,7 @@ package cobaltumsmp.discordbot.command;
 
 import cobaltumsmp.discordbot.Main;
 import cobaltumsmp.discordbot.Roles;
+import cobaltumsmp.discordbot.i18n.I18nUtil;
 import org.javacord.api.entity.activity.ActivityType;
 import org.javacord.api.entity.message.Message;
 
@@ -24,7 +25,7 @@ public class SetPresenceCommand implements Command {
 
     @Override
     public String[] description() {
-        return new String[]{"Set the bot presence."};
+        return new String[]{I18nUtil.key("command.setpresence.description")};
     }
 
     @Override
@@ -46,16 +47,15 @@ public class SetPresenceCommand implements Command {
     public void execute(Message message, List<String> args) {
         String type = args.get(0).toUpperCase();
         if (!type.equals("LISTENING") && !type.equals("PLAYING") && !type.equals("WATCHING")) {
-            message.getChannel().sendMessage(args.get(0)
-                    + " is not a valid presence type."
-                    + " Presence types: \n`LISTENING`, `PLAYING`, `WATHCING`");
+            message.getChannel().sendMessage(I18nUtil.formatKey("command.setpresence.invalid_type",
+                    args.get(0), "`LISTENING`, `PLAYING`, `WATHCING`"));
             return;
         }
 
         String text = String.join(" ", args.subList(1, args.size()));
         Main.getApi().updateActivity(ActivityType.valueOf(type), text);
 
-        message.getChannel().sendMessage(String.format("Presence set to '%s **%s**'",
+        message.getChannel().sendMessage(I18nUtil.formatKey("command.setpresence.set",
                 type.toLowerCase(), text));
     }
 }

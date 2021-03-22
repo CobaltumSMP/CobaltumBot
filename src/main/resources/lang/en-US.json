@@ -1,0 +1,13 @@
+{
+    "command.broadcast.channel_not_found": "The configured channel for broadcasts could not be found.",
+    "command.broadcast.channel_invalid_type": "The configured channel for broadcasts is not of type 'text'.",
+    "command.broadcast.description": "Like echo, but sends the message to the configured broadcast channel.",
+    "command.echo.description": "Repeat some text.",
+    "command.echo.no_permission": "You don't have permission to send messages in that channel.",
+    "command.help.description": "Get information about the bot commands.",
+    "command.help.title": "Available commands",
+    "command.ping.description": "Pong! Get the bot ping.",
+    "command.setpresence.description": "Set the bot presence.",
+    "command.setpresence.invalid_type": "%s is not a valid presence type. Presence types: \n%s",
+    "command.setpresence.set": "Presence set to '%s **%s**'"
+}

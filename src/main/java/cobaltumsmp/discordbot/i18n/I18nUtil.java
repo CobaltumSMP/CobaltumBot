@@ -24,4 +24,16 @@ public class I18nUtil {
 
         return TRANSLATABLE_STRING_POOL.get(key).toString();
     }
+
+    /**
+     * Get a formatted and translated string using the provided key translation (as format string)
+     * and args.
+     *
+     * @param key the key to translate and use as format string
+     * @param args see {@link String#format} args
+     * @return the formatted and translated string
+     */
+    public static String formatKey(String key, Object... args) {
+        return String.format(key(key), args);
+    }
 }
