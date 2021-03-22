@@ -10,6 +10,7 @@ The bot is configured via environment variables
 | :--------------------: | :------: | -------------------------------- | ----------- |
 | `DISCORD_TOKEN`        | `true`   | The discord bot token            | You must use it either as a command arg or as an env variable |
 | `PREFIX`               | `true`   | The prefix for the bot commands  |
+| `BOT_LOCALE`           | `false`  | An IETF BCP 47 locale to use for the bot. Defaults to `en-US` | More info [in the Locale javadoc](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Locale.html#forLanguageTag(java.lang.String)) |
 | `GUILD_ID_MAIN`        | `false`  | The ID of the main guild for the bot. Required by some commands and most of the other `ID` variables |
 | `CHANNEL_ID_BROADCAST` | `false`  | The ID of the channel to send the messages when using the `broadcast` command |
 | `ROLE_ID_DEV`          | `false`  | The ID of the Developer role     |

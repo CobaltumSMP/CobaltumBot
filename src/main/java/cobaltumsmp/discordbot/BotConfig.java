@@ -1,5 +1,7 @@
 package cobaltumsmp.discordbot;
 
+import java.util.Locale;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -41,11 +43,15 @@ public class BotConfig {
      */
     public static final long ROLE_ID_OWNER;
 
+    public static final Locale LOCALE;
+
     static {
+        Map<String, String> env = System.getenv();
+        // Get ID related configs
         Function<String, Long> idProvider = s -> {
             long id;
             try {
-                id = Long.parseLong(System.getenv(s));
+                id = Long.parseLong(env.get(s).trim());
             } catch (NumberFormatException e) {
                 id = 0L;
             }
@@ -60,5 +66,19 @@ public class BotConfig {
         ROLE_ID_MOD = idProvider.apply("ROLE_ID_MOD");
         ROLE_ID_ADMIN = idProvider.apply("ROLE_ID_ADMIN");
         ROLE_ID_OWNER = idProvider.apply("ROLE_ID_OWNER");
+
+        // Get locale for I18n
+        Locale locale = Locale.US;
+        String localeCode;
+        if (env.containsKey("BOT_LOCALE")
+                && !(localeCode = env.get("BOT_LOCALE").trim()).isEmpty()) {
+            try {
+                locale = Locale.forLanguageTag(localeCode);
+            } catch (NullPointerException e) {
+                Main.LOGGER.warn("Invalid locale provided ('BOT_LOCALE')! Defaulting to 'en-US'");
+            }
+        }
+
+        LOCALE = locale;
     }
 }
