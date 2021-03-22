@@ -19,7 +19,7 @@ import java.util.Map;
  */
 public class Language {
     public static final Logger LOGGER = LogManager.getLogger();
-    private static Language instance;
+    private static Language instance = new Language(new HashMap<>());
     private final Map<String, String> translations;
 
     private Language(Map<String, String> translations) {
@@ -59,9 +59,7 @@ public class Language {
         }
 
         Language lang = new Language(translations);
-        if (instance == null) {
-            instance = lang;
-        }
+        instance = lang;
 
         return lang;
     }

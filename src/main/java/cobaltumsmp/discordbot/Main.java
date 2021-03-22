@@ -7,6 +7,7 @@ import cobaltumsmp.discordbot.command.HelpCommand;
 import cobaltumsmp.discordbot.command.PingCommand;
 import cobaltumsmp.discordbot.command.SetPresenceCommand;
 import cobaltumsmp.discordbot.event.MessageListener;
+import cobaltumsmp.discordbot.i18n.Language;
 import cobaltumsmp.discordbot.module.Module;
 import cobaltumsmp.discordbot.module.RconModule;
 import cobaltumsmp.discordbot.module.ticketsystem.TicketSystemModule;
@@ -19,6 +20,7 @@ import org.javacord.api.DiscordApi;
 import org.javacord.api.DiscordApiBuilder;
 import org.javacord.api.listener.GloballyAttachableListener;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +65,20 @@ public class Main {
         if (BotConfig.PREFIX == null || BotConfig.PREFIX.equals("")) {
             LOGGER.error("Please set a valid prefix with the environment variable 'PREFIX'");
             System.exit(-1);
+        }
+
+        try {
+            Language.load(BotConfig.LOCALE.toLanguageTag());
+        } catch (IOException e) {
+            LOGGER.warn("There was an error trying to load the configured language ('{}')."
+                            + " 'en-US' will be used instead",
+                    BotConfig.LOCALE.toLanguageTag(), e);
+            try {
+                Language.load("en-US");
+            } catch (IOException e1) {
+                LOGGER.error("There was an error trying to load the fallback language!"
+                        + " Translated strings won't work as expected", e);
+            }
         }
 
         loadCommands();
