@@ -1,5 +1,6 @@
 package cobaltumsmp.discordbot;
 
+import cobaltumsmp.discordbot.i18n.I18nUtil;
 import org.javacord.api.entity.channel.Channel;
 import org.javacord.api.entity.channel.TextChannel;
 import org.javacord.api.entity.message.Message;
@@ -68,6 +69,6 @@ public class Util {
      * Sends "There was an unexpected error." to the provided channel.
      */
     public static void unexpectedErrorMessage(TextChannel channel) {
-        channel.sendMessage("There was an unexpected error.");
+        channel.sendMessage(I18nUtil.key("unexpected_error"));
     }
 }

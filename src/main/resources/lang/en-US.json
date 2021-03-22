@@ -14,5 +14,6 @@
     "command.no_args": "You must provide arguments.",
     "command.no_role": "You don't have the role needed to do this.",
     "command.not_enough_args": "You must provide at least %d argument(s).",
-    "command.wrong_channel": "You can't do that here."
+    "command.wrong_channel": "You can't do that here.",
+    "unexpected_error": "There was an unexpected error."
 }
