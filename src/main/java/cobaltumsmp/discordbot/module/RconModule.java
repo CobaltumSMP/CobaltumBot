@@ -3,6 +3,7 @@ package cobaltumsmp.discordbot.module;
 import cobaltumsmp.discordbot.Main;
 import cobaltumsmp.discordbot.Roles;
 import cobaltumsmp.discordbot.Util;
+import cobaltumsmp.discordbot.i18n.I18nUtil;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.EventLoopGroup;
@@ -120,7 +121,7 @@ public class RconModule extends Module {
 
         @Override
         public String[] description() {
-            return new String[]{"Try to reconnect the RCON connection if it failed before."};
+            return new String[]{I18nUtil.key("rcon.command.rconconnect.description")};
         }
 
         @Override
@@ -140,24 +141,26 @@ public class RconModule extends Module {
             }
 
             if (RconModule.this.authenticated || RconModule.this.connected) {
-                message.getChannel().sendMessage("RCON is already connected.");
+                message.getChannel().sendMessage(I18nUtil.key(
+                        "rcon.command.rconconnnect.already_connected"));
                 return;
             }
 
             LOGGER.info("Trying to establish connection via command.");
-            message.getChannel().sendMessage(String.format("Connecting RCON at channel <#%s>",
-                    RconModule.this.rconChannel.getId()));
+            message.getChannel().sendMessage(I18nUtil.formatKey(
+                    "rcon.command.rconconnnect.connecting",
+                    "<#" + RconModule.this.rconChannel.getId() + ">"));
             RconModule.this.connect().addListener(future -> {
                 if (future.isSuccess()) {
                     LOGGER.info("RCON connected at {}:{}", Config.HOST, Config.PORT);
-                    message.getChannel().sendMessage(String.format(
-                            "RCON connected at channel <#%s>",
-                            RconModule.this.rconChannel.getId()));
+                    message.getChannel().sendMessage(I18nUtil.formatKey(
+                            "rcon.command.rconconnnect.connected",
+                            "<#" + RconModule.this.rconChannel.getId() + ">"));
                 } else {
                     LOGGER.error("There was an error trying to establish the RCON connection.",
                             future.cause());
                     message.getChannel().sendMessage(
-                            "There was an error trying to establish the RCON connection.");
+                            I18nUtil.key("rcon.command.rconconnnect.error"));
                 }
             });
         }
@@ -179,12 +182,17 @@ public class RconModule extends Module {
 
         private void executeRconCommand(Message message) {
             if (!message.getContent().startsWith("/")) {
-                message.delete("Can't send messages in RCON channel.");
+                message.delete(I18nUtil.key("rcon.cant_send"));
+                return;
+            }
+
+            if (!RconModule.this.isEnabled()) {
+                message.getChannel().sendMessage(I18nUtil.key("module.not_enabled"));
                 return;
             }
 
             if (!RconModule.this.isLoaded()) {
-                message.getChannel().sendMessage("The module this depends on is not loaded.");
+                message.getChannel().sendMessage(I18nUtil.key("module.not_loaded"));
                 return;
             }
 
@@ -194,37 +202,31 @@ public class RconModule extends Module {
             }
 
             if (!Roles.checkRoles(message.getUserAuthor().get(), Roles.ADMIN)) {
-                message.getChannel().sendMessage("You don't have permission to do that.");
+                message.getChannel().sendMessage(I18nUtil.key("command.no_permission"));
                 return;
             }
 
             if (!RconModule.this.connected) {
-                message.getChannel().sendMessage(
-                        "The RCON connection hasn't been established."
-                                + " Please try again after running the `rconconnect` command");
+                message.getChannel().sendMessage(I18nUtil.key("rcon.not_connected"));
                 return;
             }
 
             if (!RconModule.this.authenticated) {
-                message.getChannel().sendMessage(
-                        "The RCON connection wasn't authenticated."
-                                + " Please fix the credentials, restart the bot"
-                                + " and try again after restarting the bot.");
+                message.getChannel().sendMessage(I18nUtil.key("rcon.not_authenticated"));
                 return;
             }
 
             try {
                 String response = RconModule.this.session.executeCommand(message.getContent())
                         .join();
-                message.getChannel().sendMessage(String.format("Response:\n```\n%s\n```",
+                message.getChannel().sendMessage(I18nUtil.formatKey("rcon.response",
                         response));
                 LOGGER.debug("{} executed command '{}', and received response '{}'",
                         message.getUserAuthor().get().getDiscriminatedName(), message.getChannel(),
                         response);
             } catch (Exception e) {
-                LOGGER.error(e);
-                message.getChannel().sendMessage(
-                        "There was an error trying to execute that command");
+                LOGGER.error("There was an error trying to execute '{}'", message.getContent(), e);
+                message.getChannel().sendMessage(I18nUtil.key("rcon.error"));
             }
         }
     }
