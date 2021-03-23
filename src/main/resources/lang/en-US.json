@@ -30,6 +30,7 @@
     "rcon.not_connected": "The RCON connection hasn't been established. Please try again after running the `rconconnect` command",
     "rcon.response": "Response:\n```\n%s\n```",
     "rcon.error": "There was an error trying to execute that command",
+    "ticket_system.ticket_embed_content": "Hello %s, support will be with you shortly. In the meantime, please provide as much information as possible.\n\nReact with %s to close the ticket.",
     "version_checker.command.versioncheck.description": "Execute a version check.",
     "version_checker.command.versioncheck.executing": "Executing version check task.",
     "version_checker.command.versioncheck.successful": "Version check task ran successfully.",
