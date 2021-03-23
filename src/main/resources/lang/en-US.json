@@ -30,5 +30,10 @@
     "rcon.not_connected": "The RCON connection hasn't been established. Please try again after running the `rconconnect` command",
     "rcon.response": "Response:\n```\n%s\n```",
     "rcon.error": "There was an error trying to execute that command",
+    "version_checker.command.versioncheck.description": "Execute a version check.",
+    "version_checker.command.versioncheck.executing": "Executing version check task.",
+    "version_checker.command.versioncheck.successful": "Version check task ran successfully.",
+    "version_checker.new_mc_version": "A new Minecraft %s is out: %s!",
+    "version_checker.new_jira_version": "A new version has been added to the Minecraft issue tracker: %s",
     "unexpected_error": "There was an unexpected error."
 }
