@@ -85,8 +85,6 @@ public class VersionCheckModule extends Module {
 
         LOGGER.debug("Scheduling version check task.");
 
-        int delay = 30;
-
         THREAD_POOL.scheduleAtFixedRate(() -> {
             LOGGER.debug("Running scheduled version check task.");
 
@@ -96,9 +94,9 @@ public class VersionCheckModule extends Module {
                 LOGGER.error(
                         "Encountered an error while running the scheduled version check task.", e);
             }
-        }, delay / 2, delay, TimeUnit.SECONDS);
+        }, Config.CHECK_DELAY / 2, Config.CHECK_DELAY, TimeUnit.SECONDS);
 
-        LOGGER.debug("Scheduled version check task with {} seconds of delay.", delay);
+        LOGGER.debug("Scheduled version check task with {} seconds of delay.", Config.CHECK_DELAY);
 
         this.loaded = true;
         LOGGER.info("Module ready.");

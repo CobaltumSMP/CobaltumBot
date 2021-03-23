@@ -28,6 +28,7 @@ The variables are only required if you don't disable the module
 | `VC_JIRA_URL`                    | `true`   | The URL the version checker should check for Jira updates           |
 | `CHANNEL_ID_VC_MC`               | `true`   | The ID of the channel to send notifications about Minecraft updates |
 | `CHANNEL_ID_VC_JIRA`             | `true`   | The ID of the channel to send notifications about Jira updates      |
+| `VC_CHECK_DELAY`                 | `false`  | Delay in seconds in which to check for new versions. Defaults to 30 | 
 
 ### RCON Module configuration
 The variables are only required if you don't disable the module

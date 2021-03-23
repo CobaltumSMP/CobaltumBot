@@ -39,6 +39,7 @@ public class VersionCheckCommand extends Module.ModuleCommand<VersionCheckModule
         VersionCheckModule.LOGGER.debug(
                 "Running requested version check task from command (requested by {}).",
                 message.getAuthor().getDiscriminatedName());
+        message.getChannel().sendMessage("Executing version check task.");
 
         try {
             this.module.checkUpdates();
