@@ -2,6 +2,7 @@ package cobaltumsmp.discordbot.module.ticketsystem.command;
 
 import cobaltumsmp.discordbot.Main;
 import cobaltumsmp.discordbot.Roles;
+import cobaltumsmp.discordbot.i18n.I18nUtil;
 import cobaltumsmp.discordbot.module.Module;
 import cobaltumsmp.discordbot.module.ticketsystem.TicketConfig;
 import cobaltumsmp.discordbot.module.ticketsystem.TicketSystemModule;
@@ -47,7 +48,7 @@ public class SetupCommand extends Module.ModuleCommand<TicketSystemModule> {
 
     @Override
     public String[] description() {
-        return new String[]{"Setup the Ticket System module."};
+        return new String[]{I18nUtil.key("ticket_system.command.setup.description")};
     }
 
     @Override
@@ -85,30 +86,27 @@ public class SetupCommand extends Module.ModuleCommand<TicketSystemModule> {
             messageChannel = mentionedChannels.remove(0);
         } else {
             if ((channelOptional = api.getChannelById(args.get(0))).isEmpty()) {
-                message.getChannel().sendMessage("The channel with ID '" + args.get(0)
-                        + "' could not be found.");
+                message.getChannel().sendMessage(I18nUtil.formatKey("error.channel.id_not_found",
+                        args.get(0)));
                 return;
             } else if ((textChannelOptional = channelOptional.get().asTextChannel()).isEmpty()) {
-                message.getChannel().sendMessage("The channel with ID '" + args.get(0)
-                        + "' is not of type 'text'.");
+                message.getChannel().sendMessage(I18nUtil.formatKey("error.channel.invalid_type",
+                        args.get(0)));
                 return;
             } else if ((serverTextChannelOptional = textChannelOptional.get().asServerTextChannel())
                     .isEmpty()) {
-                message.getChannel().sendMessage("The channel with ID '" + args.get(0)
-                        + "' is not a server text channel.");
+                message.getChannel().sendMessage(I18nUtil.formatKey("error.channel.not_server_text",
+                        args.get(0)));
                 return;
             } else {
                 messageChannel = serverTextChannelOptional.get();
             }
 
             if (!messageChannel.canYouWrite()) {
-                message.getChannel().sendMessage("I can't send messages at the provided channel."
-                        + " Please fix this.");
+                message.getChannel().sendMessage(I18nUtil.key("error.channel.cant_write"));
                 return;
             } else if (!messageChannel.canYouAddNewReactions()) {
-                message.getChannel().sendMessage(
-                        "I can't add new reactions at the provided channel."
-                        + " Please fix this.");
+                message.getChannel().sendMessage(I18nUtil.key("error.channel.cant_react"));
                 return;
             }
         }
@@ -118,15 +116,15 @@ public class SetupCommand extends Module.ModuleCommand<TicketSystemModule> {
         ChannelCategory closedTicketCategory;
 
         if ((channelCategoryOptional = api.getChannelCategoryById(args.get(1))).isEmpty()) {
-            message.getChannel().sendMessage("The category with ID '" + args.get(1)
-                    + "' could not be found.");
+            message.getChannel().sendMessage(I18nUtil.formatKey("error.category.id_not_found",
+                    args.get(1)));
             return;
         } else {
             ticketCategory = channelCategoryOptional.get();
         }
         if ((channelCategoryOptional = api.getChannelCategoryById(args.get(2))).isEmpty()) {
-            message.getChannel().sendMessage("The category with ID '" + args.get(2)
-                    + "' could not be found.");
+            message.getChannel().sendMessage(I18nUtil.formatKey("error.category.id_not_found",
+                    args.get(2)));
             return;
         } else {
             closedTicketCategory = channelCategoryOptional.get();
@@ -140,8 +138,8 @@ public class SetupCommand extends Module.ModuleCommand<TicketSystemModule> {
             Optional<Role> roleOptional;
             for (int i = 3; i < args.size(); ++i) {
                 if ((roleOptional = api.getRoleById(args.get(i))).isEmpty()) {
-                    message.getChannel().sendMessage("The role with ID '" + args.get(i)
-                            + "' could not be found.");
+                    message.getChannel().sendMessage(I18nUtil.formatKey("error.role.id_not_found",
+                            args.get(i)));
                     return;
                 } else {
                     roles.add(roleOptional.get());
@@ -153,12 +151,11 @@ public class SetupCommand extends Module.ModuleCommand<TicketSystemModule> {
         Message mainMsg;
         try {
             mainMsg = messageChannel.sendMessage(new EmbedBuilder().setDescription(
-                    "React to this message with "
-                    + EmojiParser.parseToUnicode(":ticket:") + " to open a ticket.")).join();
+                    I18nUtil.formatKey("ticket_system.open_embed_content",
+                            EmojiParser.parseToUnicode(":ticket:")))).join();
         } catch (Exception e) {
             TicketSystemModule.LOGGER.error(e);
-            message.getChannel().sendMessage(
-                    "There was an error trying to send the message to the provided channel.");
+            message.getChannel().sendMessage(I18nUtil.key("error.message.could_not_send"));
             return;
         }
 
@@ -210,8 +207,7 @@ public class SetupCommand extends Module.ModuleCommand<TicketSystemModule> {
         } catch (Throwable t) {
             TicketSystemModule.LOGGER.warn(t);
             new MessageBuilder().setContent(
-                    "There was an error trying to set up the ticket category permissions."
-                    + " Please set them up yourself.\n").appendCode("",
+                    I18nUtil.key("ticket_system.error.setup.ticket_category_perms")).appendCode("",
                     "CobaltumBot: View channels, Send Messages, Manage Messages,"
                             + " Manage Channels, Add Reactions, Manage Permissions\n"
                     + "Provided roles: View channels, Send Messages").send(commandChannel);
@@ -222,9 +218,10 @@ public class SetupCommand extends Module.ModuleCommand<TicketSystemModule> {
         } catch (Throwable t) {
             TicketSystemModule.LOGGER.warn(t);
             new MessageBuilder().setContent(
-                    "There was an error trying to set up the closed tickets category permissions."
-                    + " Please set them up yourself.\n").appendCode("",
-                    "CobaltumBot: Manage Messages, Manage Permissions").send(commandChannel);
+                    I18nUtil.key("ticket_system.error.setup.closed_ticket_category_perms"))
+                    .appendCode("",
+                            "CobaltumBot: Manage Messages, Manage Permissions")
+                    .send(commandChannel);
         }
     }
 }
