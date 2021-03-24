@@ -49,6 +49,11 @@ public class EchoCommand implements Command {
                 return;
             }
 
+            if (!channel.canYouWrite()) {
+                message.getChannel().sendMessage(I18nUtil.key("error.channel.cant_write"));
+                return;
+            }
+
             if (!channel.canWrite(message.getUserAuthor().get())) {
                 message.getChannel().sendMessage(I18nUtil.key("command.echo.no_permission"));
                 return;
