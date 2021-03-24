@@ -6,8 +6,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.File;
+import java.io.FileReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.IOException;
-import java.net.URL;
+import java.io.Reader;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -36,6 +39,7 @@ public class Language {
 
         // Find in working dir
         File file = new File(name);
+        Reader reader;
 
         if (!file.exists()) {
             // Find in lang sub directory of working one
@@ -43,23 +47,26 @@ public class Language {
 
             if (!file.exists()) {
                 // Find in classpath
-                URL fileUrl = ClassLoader.getSystemClassLoader().getResource(name);
+                InputStream stream = getResourceAsStream(name);
 
-                if (fileUrl == null) {
-                    // Find in lang directory in classpath
-                    fileUrl = ClassLoader.getSystemClassLoader().getResource("lang/" + name);
+                if (stream == null) {
+                    stream = getResourceAsStream("lang/" + name);
 
-                    if (fileUrl == null) {
+                    if (stream == null) {
                         return null;
                     }
                 }
 
-                file = new File(fileUrl.getFile());
+                reader = new InputStreamReader(stream);
+            } else {
+                reader = new FileReader(file);
             }
+        } else {
+            reader = new FileReader(file);
         }
 
         Map<String, String> translations = new HashMap<>();
-        JsonNode langJson = new ObjectMapper().readTree(file);
+        JsonNode langJson = new ObjectMapper().readTree(reader);
 
         Iterator<Map.Entry<String, JsonNode>> keyIterator = langJson.fields();
         while (keyIterator.hasNext()) {
@@ -71,6 +78,18 @@ public class Language {
         instance = lang;
 
         return lang;
+    }
+
+    private static InputStream getResourceAsStream(String name) {
+        // Try with system class loader
+        InputStream stream = ClassLoader.getSystemClassLoader().getResourceAsStream(name);
+
+        if (stream == null) {
+            // Try with Class#getClassLoader();
+            stream = Language.class.getResourceAsStream(name);
+        }
+
+        return stream;
     }
 
     public static Language getInstance() {
