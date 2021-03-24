@@ -2,6 +2,7 @@ package cobaltumsmp.discordbot.module.versioncheck;
 
 import cobaltumsmp.discordbot.Main;
 import cobaltumsmp.discordbot.Util;
+import cobaltumsmp.discordbot.i18n.I18nUtil;
 import cobaltumsmp.discordbot.module.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
@@ -117,14 +118,14 @@ public class VersionCheckModule extends Module {
 
         MinecraftObjects.Version mcVersion = this.checkMinecraftUpdates();
         if (mcVersion != null && this.mcUpdatesChannel != null) {
-            this.mcUpdatesChannel.sendMessage(String.format(
-                    "A new Minecraft %s is out: %s!", mcVersion.type, mcVersion.id));
+            this.mcUpdatesChannel.sendMessage(I18nUtil.formatKey("version_checker.new_mc_version",
+                    mcVersion.type, mcVersion.id));
         }
 
         JiraObjects.Version jiraVersion = this.checkJiraUpdates();
         if (jiraVersion != null && this.jiraUpdatesChannel != null) {
-            this.jiraUpdatesChannel.sendMessage(String.format(
-                    "A new version has been added to the Minecraft issue tracker: %s",
+            this.jiraUpdatesChannel.sendMessage(I18nUtil.formatKey(
+                    "version_checker.new_jira_version",
                     jiraVersion.name));
         }
 

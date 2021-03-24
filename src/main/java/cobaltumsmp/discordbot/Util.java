@@ -1,16 +1,23 @@
 package cobaltumsmp.discordbot;
 
+import cobaltumsmp.discordbot.i18n.I18nUtil;
 import org.javacord.api.entity.channel.Channel;
 import org.javacord.api.entity.channel.TextChannel;
 import org.javacord.api.entity.message.Message;
 
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 
 /**
  * Utility methods.
  */
 public class Util {
+    private static final Properties dotEnv = new Properties();
+
     public static boolean isSystemEnvEmpty(String name) {
         return isMapValueEmpty(System.getenv(), name);
     }
@@ -68,6 +75,23 @@ public class Util {
      * Sends "There was an unexpected error." to the provided channel.
      */
     public static void unexpectedErrorMessage(TextChannel channel) {
-        channel.sendMessage("There was an unexpected error.");
+        channel.sendMessage(I18nUtil.key("unexpected_error"));
+    }
+
+    /**
+     * Load properties from a {@code .env} file in the directory from where the bot was launched.
+     *
+     * @throws IOException if an error occurs during the file reading
+     */
+    public static void loadDotEnv() throws IOException {
+        File dotEnvFile = new File(".env");
+        if (dotEnvFile.exists() && !dotEnvFile.isDirectory()) {
+            dotEnv.load(new FileReader(dotEnvFile));
+        }
+    }
+
+    public static String getEnv(String variableName) {
+        return dotEnv.getProperty(variableName, isSystemEnvEmpty(variableName)
+                ? "" : System.getenv(variableName)).trim();
     }
 }

@@ -2,6 +2,7 @@ package cobaltumsmp.discordbot.module.ticketsystem;
 
 import cobaltumsmp.discordbot.Main;
 import cobaltumsmp.discordbot.Util;
+import cobaltumsmp.discordbot.i18n.I18nUtil;
 import cobaltumsmp.discordbot.module.Module;
 import cobaltumsmp.discordbot.module.ticketsystem.command.OpenCommand;
 import cobaltumsmp.discordbot.module.ticketsystem.command.SetupCommand;
@@ -125,12 +126,8 @@ public class TicketSystemModule extends Module {
         }
 
         EmbedBuilder embed = new EmbedBuilder()
-                .setDescription("Hello " + owner.getMentionTag()
-                        + ", support will be with you shortly."
-
-                        + " In the meantime, please provide as much information as possible.\n"
-                        + "React with " + EmojiParser.parseToUnicode(":lock:")
-                        + " to close the ticket.");
+                .setDescription(I18nUtil.formatKey("ticket_system.ticket_embed_content",
+                        owner.getMentionTag(), EmojiParser.parseToUnicode(":lock:")));
         Message botMsg;
         try {
             botMsg = new MessageBuilder().setEmbed(embed).send(ticketChannel).join();

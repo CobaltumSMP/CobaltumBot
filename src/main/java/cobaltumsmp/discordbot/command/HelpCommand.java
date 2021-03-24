@@ -3,6 +3,7 @@ package cobaltumsmp.discordbot.command;
 import cobaltumsmp.discordbot.Main;
 import cobaltumsmp.discordbot.Roles;
 import cobaltumsmp.discordbot.Util;
+import cobaltumsmp.discordbot.i18n.I18nUtil;
 import com.google.common.base.Strings;
 import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.embed.EmbedBuilder;
@@ -23,7 +24,7 @@ public class HelpCommand implements Command {
 
     @Override
     public String[] description() {
-        return new String[]{"Get information about the bot commands."};
+        return new String[]{I18nUtil.key("command.help.description")};
     }
 
     @Override
@@ -50,7 +51,7 @@ public class HelpCommand implements Command {
                 });
 
         EmbedBuilder embed = new EmbedBuilder().setColor(Color.decode("#085a7a"))
-                .setTitle("Available commands")
+                .setTitle(I18nUtil.key("command.help.title"))
                 .setAuthor(message.getApi().getYourself().getDiscriminatedName(), "",
                         message.getApi().getYourself().getAvatar())
                 .setDescription(String.format("```\n%s\n```", String.join("\n", helpList)))

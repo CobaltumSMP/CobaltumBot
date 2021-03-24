@@ -1,6 +1,7 @@
 package cobaltumsmp.discordbot.command;
 
 import cobaltumsmp.discordbot.Util;
+import cobaltumsmp.discordbot.i18n.I18nUtil;
 import org.javacord.api.entity.channel.TextChannel;
 import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.MessageBuilder;
@@ -22,7 +23,7 @@ public class EchoCommand implements Command {
 
     @Override
     public String[] description() {
-        return new String[]{"Repeat some text."};
+        return new String[]{I18nUtil.key("command.echo.description")};
     }
 
     @Override
@@ -49,8 +50,7 @@ public class EchoCommand implements Command {
             }
 
             if (!channel.canWrite(message.getUserAuthor().get())) {
-                message.getChannel().sendMessage(
-                        "You don't have permission to send messages in that channel.");
+                message.getChannel().sendMessage(I18nUtil.key("command.echo.no_permission"));
                 return;
             }
 

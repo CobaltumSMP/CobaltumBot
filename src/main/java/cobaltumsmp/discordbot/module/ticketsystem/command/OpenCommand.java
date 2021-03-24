@@ -1,6 +1,7 @@
 package cobaltumsmp.discordbot.module.ticketsystem.command;
 
 import cobaltumsmp.discordbot.Util;
+import cobaltumsmp.discordbot.i18n.I18nUtil;
 import cobaltumsmp.discordbot.module.Module;
 import cobaltumsmp.discordbot.module.ticketsystem.TicketConfig;
 import cobaltumsmp.discordbot.module.ticketsystem.TicketSystemModule;
@@ -31,7 +32,7 @@ public class OpenCommand extends Module.ModuleCommand<TicketSystemModule> {
 
     @Override
     public String[] description() {
-        return new String[]{"Open a ticket."};
+        return new String[]{I18nUtil.key("ticket_system.command.open.description")};
     }
 
     @Override
@@ -46,12 +47,11 @@ public class OpenCommand extends Module.ModuleCommand<TicketSystemModule> {
         }
 
         if (this.module.getConfigCount() <= 0) {
-            message.getChannel().sendMessage(
-                    "There is no valid ticket configuration. You can't do this.");
+            message.getChannel().sendMessage(I18nUtil.key("ticket_system.command.open.no_config"));
             return;
         } else if (this.module.getConfigCount() > 1) {
             message.getChannel().sendMessage(
-                    "There is more than one ticket configuration. You can't do this.");
+                    I18nUtil.key("ticket_system.command.open.too_many_configs"));
             return;
         }
 

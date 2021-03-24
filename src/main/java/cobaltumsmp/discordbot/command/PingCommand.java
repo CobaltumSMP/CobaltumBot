@@ -1,5 +1,6 @@
 package cobaltumsmp.discordbot.command;
 
+import cobaltumsmp.discordbot.i18n.I18nUtil;
 import com.vdurmont.emoji.EmojiParser;
 import org.javacord.api.entity.message.Message;
 
@@ -22,7 +23,7 @@ public class PingCommand implements Command {
 
     @Override
     public String[] description() {
-        return new String[]{"Pong! Get the bot ping."};
+        return new String[]{I18nUtil.key("command.ping.description")};
     }
 
     @Override
