@@ -6,6 +6,7 @@ build/
 
 # Bot stuff
 logs/
+.env
 
 # Intellij IDEA
 .idea
@@ -13,7 +14,6 @@ logs/
 out/
 
 # Residues from js/ts branch
-.env
 *.log
 node_modules/
 built/

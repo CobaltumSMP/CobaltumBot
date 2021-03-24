@@ -11,7 +11,7 @@ public class BotConfig {
     /**
      * The bot prefix.
      */
-    public static final String PREFIX = System.getenv("PREFIX");
+    public static final String PREFIX = Util.getEnv("PREFIX");
     /**
      * The ID of the main guild.
      */
@@ -46,12 +46,11 @@ public class BotConfig {
     public static final Locale LOCALE;
 
     static {
-        Map<String, String> env = System.getenv();
         // Get ID related configs
         Function<String, Long> idProvider = s -> {
             long id;
             try {
-                id = Long.parseLong(env.get(s).trim());
+                id = Long.parseLong(Util.getEnv(s));
             } catch (NumberFormatException e) {
                 id = 0L;
             }
@@ -70,8 +69,7 @@ public class BotConfig {
         // Get locale for I18n
         Locale locale = Locale.US;
         String localeCode;
-        if (env.containsKey("BOT_LOCALE")
-                && !(localeCode = env.get("BOT_LOCALE").trim()).isEmpty()) {
+        if (!(localeCode = Util.getEnv("BOT_LOCALE")).isEmpty()) {
             try {
                 locale = Locale.forLanguageTag(localeCode);
             } catch (NullPointerException e) {

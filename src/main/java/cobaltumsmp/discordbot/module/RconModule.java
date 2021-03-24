@@ -87,15 +87,15 @@ public class RconModule extends Module {
     }
 
     static class Config {
-        public static final String CHANNEL_ID_RCON = System.getenv("CHANNEL_ID_RCON");
-        public static final String HOST = System.getenv("RCON_HOST");
-        public static final String PASS = System.getenv("RCON_PASS");
+        public static final String CHANNEL_ID_RCON = Util.getEnv("CHANNEL_ID_RCON");
+        public static final String HOST = Util.getEnv("RCON_HOST");
+        public static final String PASS = Util.getEnv("RCON_PASS");
         public static final int PORT;
 
         static {
             int port;
             try {
-                port = Integer.parseInt(System.getenv("RCON_PORT"));
+                port = Integer.parseInt(Util.getEnv("RCON_PORT"));
             } catch (NumberFormatException e) {
                 LOGGER.warn("Invalid port provided.", e);
                 port = 25575;

@@ -53,17 +53,24 @@ public class Main {
      * Entrypoint for the bot.
      */
     public static void main(String[] args) {
+        // Load .env
+        try {
+            Util.loadDotEnv();
+        } catch (IOException e) {
+            LOGGER.warn("There was an error trying to load the .env file. It won't be used", e);
+        }
+
         String token = "";
         try {
-            String tokenEnv = System.getenv("DISCORD_TOKEN");
-            token = tokenEnv != null && !tokenEnv.equals("") ? tokenEnv : args[0];
+            String tokenEnv = Util.getEnv("DISCORD_TOKEN");
+            token = !tokenEnv.isEmpty() ? tokenEnv : args[0];
         } catch (ArrayIndexOutOfBoundsException e) {
             LOGGER.error("You must provide a discord token either with an argument or a "
                             + "system variable!");
             System.exit(-1);
         }
 
-        if (BotConfig.PREFIX == null || BotConfig.PREFIX.equals("")) {
+        if (BotConfig.PREFIX.isEmpty()) {
             LOGGER.error("Please set a valid prefix with the environment variable 'PREFIX'");
             System.exit(-1);
         }
@@ -173,7 +180,7 @@ public class Main {
 
     private static void disableModuleFromEnv(Module module) {
         String key = "MODULE_" + module.getId().toUpperCase() + "_ENABLED";
-        if (!Util.isSystemEnvEmpty(key) && System.getenv(key).equalsIgnoreCase("false")) {
+        if (Util.getEnv(key).equalsIgnoreCase("false")) {
             module.setEnabled(false);
             LOGGER.info("Module '{}' has been disabled via env variable.", module.name());
         }

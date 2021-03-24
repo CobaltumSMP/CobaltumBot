@@ -3,7 +3,7 @@ This bot is built for a specific server in mind. If you want to use if, you can 
 The bot depends on Java 11.
 
 ## Configuration
-The bot is configured via environment variables
+The bot is configured via environment variables and/or a `.env` file in the same directory from where the bot was launched
 
 ### Main configuration
 | Variable               | Required | Description                      | Comment     |
