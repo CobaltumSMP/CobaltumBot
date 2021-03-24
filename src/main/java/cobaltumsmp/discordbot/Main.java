@@ -23,6 +23,7 @@ import org.javacord.api.listener.GloballyAttachableListener;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
@@ -67,19 +68,7 @@ public class Main {
             System.exit(-1);
         }
 
-        try {
-            Language.load(BotConfig.LOCALE.toLanguageTag());
-        } catch (IOException e) {
-            LOGGER.warn("There was an error trying to load the configured language ('{}')."
-                            + " 'en-US' will be used instead",
-                    BotConfig.LOCALE.toLanguageTag(), e);
-            try {
-                Language.load("en-US");
-            } catch (IOException e1) {
-                LOGGER.error("There was an error trying to load the fallback language!"
-                        + " Translated strings won't work as expected", e);
-            }
-        }
+        loadLanguage(BotConfig.LOCALE);
 
         loadCommands();
         int eventCount = loadEventListeners();
@@ -101,6 +90,36 @@ public class Main {
 
         initModules();
         applyEventListeners();
+    }
+
+    private static void loadLanguage(Locale locale) {
+        String defaultFailed
+                = "Failed to load default language! Translations won't work as expected";
+        String otherFailed = String.format(
+                "Failed to load language '%s'. Trying to load default language",
+                locale.toLanguageTag());
+
+        try {
+            Language lang = Language.load(locale.toLanguageTag());
+
+            if (lang == null) {
+                if (locale == Locale.US) {
+                    LOGGER.warn(defaultFailed);
+                } else {
+                    // Retry by loading default language instead
+                    LOGGER.warn(otherFailed);
+                    loadLanguage(Locale.US);
+                }
+            }
+        } catch (IOException e) {
+            if (locale == Locale.US) {
+                LOGGER.error(defaultFailed, e);
+            } else {
+                // Retry by loading default language instead
+                LOGGER.error(otherFailed, e);
+                loadLanguage(Locale.US);
+            }
+        }
     }
 
     private static void loadCommands() {

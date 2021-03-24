@@ -5,11 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.InputStream;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -34,23 +32,34 @@ public class Language {
      * @throws IOException thrown by {@link ObjectMapper#readTree}
      */
     public static Language load(String langCode) throws IOException {
-        String langFilePath = String.format("lang/%s.json", langCode);
+        String name = String.format("%s.json", langCode);
 
-        InputStreamReader langFileReader;
-        try {
-            langFileReader = new FileReader(langFilePath);
-        } catch (FileNotFoundException e) {
-            InputStream langFileStream = Language.class.getResourceAsStream(langFilePath);
-            if (langFileStream == null) {
-                LOGGER.warn("Could not find a language file for '{}'", langCode);
-                return null;
+        // Find in working dir
+        File file = new File(name);
+
+        if (!file.exists()) {
+            // Find in lang sub directory of working one
+            file = new File("lang", name);
+
+            if (!file.exists()) {
+                // Find in classpath
+                URL fileUrl = ClassLoader.getSystemClassLoader().getResource(name);
+
+                if (fileUrl == null) {
+                    // Find in lang directory in classpath
+                    fileUrl = ClassLoader.getSystemClassLoader().getResource("lang/" + name);
+
+                    if (fileUrl == null) {
+                        return null;
+                    }
+                }
+
+                file = new File(fileUrl.getFile());
             }
-
-            langFileReader = new InputStreamReader(langFileStream);
         }
 
         Map<String, String> translations = new HashMap<>();
-        JsonNode langJson = new ObjectMapper().readTree(langFileReader);
+        JsonNode langJson = new ObjectMapper().readTree(file);
 
         Iterator<Map.Entry<String, JsonNode>> keyIterator = langJson.fields();
         while (keyIterator.hasNext()) {

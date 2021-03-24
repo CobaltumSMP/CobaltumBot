@@ -10,6 +10,7 @@ logs/
 # Intellij IDEA
 .idea
 *.iml
+out/
 
 # Residues from js/ts branch
 .env
