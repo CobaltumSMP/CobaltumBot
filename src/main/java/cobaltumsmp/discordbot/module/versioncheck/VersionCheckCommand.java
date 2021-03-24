@@ -23,7 +23,7 @@ public class VersionCheckCommand extends Module.ModuleCommand<VersionCheckModule
 
     @Override
     public String[] description() {
-        return new String[]{I18nUtil.key("version_check.command.versioncheck.description")};
+        return new String[]{I18nUtil.key("version_checker.command.versioncheck.description")};
     }
 
     @Override
