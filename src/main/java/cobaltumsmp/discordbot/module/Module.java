@@ -5,6 +5,7 @@ import cobaltumsmp.discordbot.i18n.I18nUtil;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.entity.channel.TextChannel;
 
+import javax.annotation.Nullable;
 import java.util.function.Consumer;
 
 /**
@@ -19,7 +20,7 @@ public abstract class Module {
 
     public abstract void init();
 
-    public Consumer<DiscordApi> getInstallFunction() {
+    public @Nullable Consumer<DiscordApi> getInstallFunction() {
         return null;
     }
 

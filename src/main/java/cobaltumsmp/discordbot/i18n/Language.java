@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileReader;
 import java.io.InputStream;
@@ -34,6 +36,7 @@ public class Language {
      * @return the Language
      * @throws IOException thrown by {@link ObjectMapper#readTree}
      */
+    @Nullable
     public static Language load(String langCode) throws IOException {
         String name = String.format("%s.json", langCode);
 
@@ -80,7 +83,7 @@ public class Language {
         return lang;
     }
 
-    private static InputStream getResourceAsStream(String name) {
+    private static @Nullable InputStream getResourceAsStream(String name) {
         // Try with system class loader
         InputStream stream = ClassLoader.getSystemClassLoader().getResourceAsStream(name);
 
@@ -92,7 +95,7 @@ public class Language {
         return stream;
     }
 
-    public static Language getInstance() {
+    public static @Nonnull Language getInstance() {
         return instance;
     }
 

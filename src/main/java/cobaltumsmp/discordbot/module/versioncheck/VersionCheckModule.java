@@ -17,6 +17,7 @@ import org.javacord.api.DiscordApi;
 import org.javacord.api.entity.channel.Channel;
 import org.javacord.api.entity.channel.TextChannel;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -104,7 +105,7 @@ public class VersionCheckModule extends Module {
     }
 
     @Override
-    public Consumer<DiscordApi> getInstallFunction() {
+    public @Nullable Consumer<DiscordApi> getInstallFunction() {
         return discordApi -> Main.loadCommand(new VersionCheckCommand(this));
     }
 

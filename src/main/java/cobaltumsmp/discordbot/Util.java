@@ -5,6 +5,7 @@ import org.javacord.api.entity.channel.Channel;
 import org.javacord.api.entity.channel.TextChannel;
 import org.javacord.api.entity.message.Message;
 
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
@@ -37,7 +38,7 @@ public class Util {
      * Checks if the {@linkplain Message#getUserAuthor() message user author}
      * {@linkplain java.util.Optional#isEmpty() is empty}.
      */
-    public static boolean isMessageUserAuthorEmpty(Message message) {
+    public static boolean isMessageUserAuthorEmpty(@Nonnull Message message) {
         if (message.getUserAuthor().isEmpty()) {
             Main.LOGGER.error(new IllegalStateException(
                     "Message#getUserAuthor was empty"));
@@ -62,7 +63,7 @@ public class Util {
      * Checks if {@link Channel#asTextChannel()}
      * {@linkplain java.util.Optional#isEmpty() is empty}.
      */
-    public static boolean isTextChannelEmpty(Channel channel) {
+    public static boolean isTextChannelEmpty(@Nonnull Channel channel) {
         if (channel.asTextChannel().isEmpty()) {
             Main.LOGGER.error(new IllegalStateException("Channel#asTextChannel was empty"));
             return true;
@@ -73,14 +74,14 @@ public class Util {
     /**
      * Sends "There was an unexpected error." to the channel of the provided message.
      */
-    public static void unexpectedErrorMessageResponse(Message message) {
+    public static void unexpectedErrorMessageResponse(@Nonnull Message message) {
         unexpectedErrorMessage(message.getChannel());
     }
 
     /**
      * Sends "There was an unexpected error." to the provided channel.
      */
-    public static void unexpectedErrorMessage(TextChannel channel) {
+    public static void unexpectedErrorMessage(@Nonnull TextChannel channel) {
         channel.sendMessage(I18nUtil.key("unexpected_error"));
     }
 
@@ -204,7 +205,7 @@ public class Util {
         }
     }
 
-    public static String getEnv(String variableName) {
+    public static String getEnv(@Nonnull String variableName) {
         return dotEnv.getProperty(variableName, isSystemEnvEmpty(variableName)
                 ? "" : System.getenv(variableName)).trim();
     }

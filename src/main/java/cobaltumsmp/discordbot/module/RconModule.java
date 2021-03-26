@@ -19,6 +19,7 @@ import org.javacord.api.entity.message.Message;
 import org.javacord.api.event.message.MessageCreateEvent;
 import org.javacord.api.listener.message.MessageCreateListener;
 
+import javax.annotation.Nullable;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.List;
@@ -75,7 +76,7 @@ public class RconModule extends Module {
     }
 
     @Override
-    public Consumer<DiscordApi> getInstallFunction() {
+    public @Nullable Consumer<DiscordApi> getInstallFunction() {
         return discordApi -> {
             discordApi.addListener(new MessageListener());
             Main.loadCommand(new RconConnectCommand(this));

@@ -4,6 +4,8 @@ import org.javacord.api.entity.permission.Role;
 import org.javacord.api.entity.server.Server;
 import org.javacord.api.entity.user.User;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -33,7 +35,7 @@ public enum Roles {
      * @param role the role that the user should have as minimum.
      * @return if the user has the same or a higher role.
      */
-    public static boolean checkRoles(User user, Roles role) {
+    public static boolean checkRoles(@Nonnull User user, @Nonnull Roles role) {
         if (role == Roles.DEV) {
             return true;
         }
@@ -57,7 +59,7 @@ public enum Roles {
         return false;
     }
 
-    private static Role getRoleById(long id) {
+    private static @Nullable Role getRoleById(long id) {
         return Main.getApi().getRoleById(id).orElse(null);
     }
 

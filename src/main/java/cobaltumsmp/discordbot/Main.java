@@ -20,6 +20,7 @@ import org.javacord.api.DiscordApi;
 import org.javacord.api.DiscordApiBuilder;
 import org.javacord.api.listener.GloballyAttachableListener;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -99,7 +100,7 @@ public class Main {
         applyEventListeners();
     }
 
-    private static void loadLanguage(Locale locale) {
+    private static void loadLanguage(@Nonnull Locale locale) {
         String defaultFailed
                 = "Failed to load default language! Translations won't work as expected";
         String otherFailed = String.format(

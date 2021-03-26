@@ -25,6 +25,7 @@ import org.javacord.api.entity.message.embed.EmbedBuilder;
 import org.javacord.api.entity.user.User;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -90,7 +91,7 @@ public class TicketSystemModule extends Module {
     }
 
     @Override
-    public Consumer<DiscordApi> getInstallFunction() {
+    public @Nullable Consumer<DiscordApi> getInstallFunction() {
         return discordApi -> {
             Main.loadCommand(new SetupCommand(this));
             Main.loadCommand(new OpenCommand(this));
@@ -103,7 +104,7 @@ public class TicketSystemModule extends Module {
      * @param ticketConfig the configuration to open the ticket under.
      * @param owner the owner of the ticket.
      */
-    public void openTicket(TicketConfig ticketConfig, User owner) {
+    public void openTicket(@Nonnull TicketConfig ticketConfig, @Nonnull User owner) {
         LOGGER.info("Opening ticket...");
         DiscordApi api = Main.getApi();
         Optional<ChannelCategory> channelCategoryOptional;
