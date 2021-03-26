@@ -14,6 +14,7 @@ import cobaltumsmp.discordbot.module.ticketsystem.TicketSystemModule;
 import cobaltumsmp.discordbot.module.versioncheck.VersionCheckModule;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.javacord.api.DiscordApi;
@@ -35,7 +36,8 @@ import java.util.concurrent.Executors;
  */
 public class Main {
     public static final Logger LOGGER = LogManager.getLogger(Main.class);
-    private static final ExecutorService THREAD_POOL = Executors.newCachedThreadPool();
+    private static final ExecutorService THREAD_POOL = Executors.newCachedThreadPool(
+            new ThreadFactoryBuilder().setNameFormat("module-init-thread-%d").build());
     public static final ListeningExecutorService SERVICE =
             MoreExecutors.listeningDecorator(THREAD_POOL);
     /**

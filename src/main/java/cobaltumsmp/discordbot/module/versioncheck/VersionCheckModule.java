@@ -5,6 +5,7 @@ import cobaltumsmp.discordbot.Util;
 import cobaltumsmp.discordbot.i18n.I18nUtil;
 import cobaltumsmp.discordbot.module.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequests;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
@@ -35,7 +36,8 @@ import java.util.function.Consumer;
 public class VersionCheckModule extends Module {
     protected static final Logger LOGGER = LogManager.getLogger();
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final ScheduledExecutorService THREAD_POOL = Executors.newScheduledThreadPool(3);
+    private static final ScheduledExecutorService THREAD_POOL = Executors.newScheduledThreadPool(3,
+            new ThreadFactoryBuilder().setNameFormat("version-checker-thread-%d").build());
     private final CloseableHttpAsyncClient httpClient = HttpAsyncClients.createDefault();
     private TextChannel mcUpdatesChannel = null;
     private TextChannel jiraUpdatesChannel = null;
