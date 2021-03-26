@@ -18,11 +18,13 @@ import org.javacord.api.DiscordApi;
 import org.javacord.api.entity.channel.ChannelCategory;
 import org.javacord.api.entity.channel.ServerTextChannel;
 import org.javacord.api.entity.channel.ServerTextChannelBuilder;
+import org.javacord.api.entity.channel.TextChannel;
 import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.MessageBuilder;
 import org.javacord.api.entity.message.embed.EmbedBuilder;
 import org.javacord.api.entity.user.User;
 
+import javax.annotation.Nonnull;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -153,6 +155,26 @@ public class TicketSystemModule extends Module {
 
         ticketChannel.createUpdater().setName("ticket-"
                 + Strings.padStart(Integer.toString(ticket.getTicketId()), 4, '0')).update();
+    }
+
+    /**
+     * Close a {@link Ticket} in the provided duration since the command execution. Use {@code 0}
+     * for it to close instantly.
+     *
+     * @param ticket the ticket to close
+     * @param duration a human readable duration
+     * @param feedbackChannel a text channel to send feedback about the command execution
+     */
+    public void closeTicket(@Nonnull Ticket ticket, String duration, TextChannel feedbackChannel) {
+        long seconds;
+        try {
+            seconds = Util.parseHumanReadableDuration(duration);
+        } catch (NumberFormatException e) {
+            LOGGER.debug("Invalid duration", e);
+            feedbackChannel.sendMessage(I18nUtil.key("error.invalid_duration"));
+        }
+
+        // TODO
     }
 
     public void updateConfigs() {
