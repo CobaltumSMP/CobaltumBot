@@ -21,7 +21,7 @@ import org.javacord.api.entity.channel.TextChannel;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -41,8 +41,8 @@ public class VersionCheckModule extends Module {
     private final CloseableHttpAsyncClient httpClient = HttpAsyncClients.createDefault();
     private TextChannel mcUpdatesChannel = null;
     private TextChannel jiraUpdatesChannel = null;
-    private List<MinecraftObjects.Version> minecraftVersions;
-    private List<JiraObjects.Version> jiraVersions;
+    private ArrayList<MinecraftObjects.Version> minecraftVersions;
+    private ArrayList<JiraObjects.Version> jiraVersions;
     private boolean checking = false;
 
     @Override
@@ -138,9 +138,9 @@ public class VersionCheckModule extends Module {
     private MinecraftObjects.Version checkMinecraftUpdates() {
         LOGGER.debug("Checking for Minecraft updates.");
 
-        List<MinecraftObjects.Version> versions = this.getMinecraftVersions();
-        Optional<MinecraftObjects.Version> newVersion = versions.stream().filter(v ->
-                !this.minecraftVersions.contains(v)).findFirst();
+        ArrayList<MinecraftObjects.Version> versions = this.getMinecraftVersions();
+        Optional<MinecraftObjects.Version> newVersion = findMismatch(this.minecraftVersions,
+                versions);
 
         if (newVersion.isEmpty()) {
             LOGGER.debug("Minecraft | New version: N/A");
@@ -158,9 +158,8 @@ public class VersionCheckModule extends Module {
     private JiraObjects.Version checkJiraUpdates() {
         LOGGER.debug("Checking for Jira updates.");
 
-        List<JiraObjects.Version> versions = this.getJiraVersions();
-        Optional<JiraObjects.Version> newVersion = versions.stream().filter(v ->
-                !this.jiraVersions.contains(v)).findFirst();
+        ArrayList<JiraObjects.Version> versions = this.getJiraVersions();
+        Optional<JiraObjects.Version> newVersion = findMismatch(this.jiraVersions, versions);
 
         if (newVersion.isEmpty()) {
             LOGGER.debug("Jira      | New version: N/A");
@@ -175,22 +174,22 @@ public class VersionCheckModule extends Module {
         return newVersion.orElse(null);
     }
 
-    private List<MinecraftObjects.Version> getMinecraftVersions() {
+    private ArrayList<MinecraftObjects.Version> getMinecraftVersions() {
         try {
             MinecraftObjects.Response response = this.getMinecraftResponse();
 
-            return response.versions;
+            return new ArrayList<>(response.versions);
         } catch (ExecutionException | InterruptedException | IOException e) {
             LOGGER.error("There was an error getting the Minecraft versions.", e);
             return new ArrayList<>();
         }
     }
 
-    private List<JiraObjects.Version> getJiraVersions() {
+    private ArrayList<JiraObjects.Version> getJiraVersions() {
         try {
             JiraObjects.Response response = this.getJiraResponse();
 
-            return response.versions;
+            return new ArrayList<>(response.versions);
         } catch (ExecutionException | IOException | InterruptedException e) {
             LOGGER.error("There was an error getting the Jira versions.", e);
             return new ArrayList<>();
@@ -245,5 +244,18 @@ public class VersionCheckModule extends Module {
                 }).get();
 
         return MAPPER.readValue(response.getBodyText(), JiraObjects.Response.class);
+    }
+
+    /**
+     * Find a different element in two arraylists.
+     *
+     * @param a the base list
+     * @param b the list where to find the mismatch
+     * @param <T> type of the arraylists
+     * @return an optional of the mismatched element
+     */
+    private <T> Optional<T> findMismatch(ArrayList<T> a, ArrayList<T> b) {
+        int mismatchedIndex = Arrays.mismatch(a.toArray(), b.toArray());
+        return mismatchedIndex == -1 ? Optional.empty() : Optional.of(b.get(mismatchedIndex));
     }
 }
