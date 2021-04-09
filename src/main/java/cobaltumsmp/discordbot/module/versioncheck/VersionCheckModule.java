@@ -142,9 +142,13 @@ public class VersionCheckModule extends Module {
         Optional<MinecraftObjects.Version> newVersion = versions.stream().filter(v ->
                 !this.minecraftVersions.contains(v)).findFirst();
 
-        LOGGER.debug("Minecraft | New version: {}",
-                newVersion.isEmpty() ? "N/A" : newVersion.get().id);
-        LOGGER.debug("Minecraft | Total versions: {}", versions.size());
+        if (newVersion.isEmpty()) {
+            LOGGER.debug("Minecraft | New version: N/A");
+            LOGGER.debug("Minecraft | Total versions: {}", versions.size());
+        } else {
+            LOGGER.info("Minecraft | New version: {}", newVersion.get().id);
+            LOGGER.info("Minecraft | Total versions: {}", versions.size());
+        }
 
         this.minecraftVersions = versions;
 
@@ -158,9 +162,13 @@ public class VersionCheckModule extends Module {
         Optional<JiraObjects.Version> newVersion = versions.stream().filter(v ->
                 !this.jiraVersions.contains(v)).findFirst();
 
-        LOGGER.debug("Jira      | New version: {}",
-                newVersion.isEmpty() ? "N/A" : newVersion.get().name);
-        LOGGER.debug("Jira      | Total versions: {}", versions.size());
+        if (newVersion.isEmpty()) {
+            LOGGER.debug("Jira      | New version: N/A");
+            LOGGER.debug("Jira      | Total versions: {}", versions.size());
+        } else {
+            LOGGER.info("Jira      | New version: {}", newVersion.get().name);
+            LOGGER.info("Jira      | Total versions: {}", versions.size());
+        }
 
         this.jiraVersions = versions;
 
