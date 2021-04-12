@@ -36,7 +36,7 @@ public enum Roles {
      * @return if the user has the same or a higher role.
      */
     public static boolean checkRoles(@Nonnull User user, @Nonnull Roles role) {
-        if (role == Roles.DEV) {
+        if (role == Roles.NONE) {
             return true;
         }
 
