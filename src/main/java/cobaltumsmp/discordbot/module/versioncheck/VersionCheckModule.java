@@ -43,6 +43,8 @@ public class VersionCheckModule extends Module {
     private TextChannel jiraUpdatesChannel = null;
     private ArrayList<MinecraftObjects.Version> minecraftVersions;
     private ArrayList<JiraObjects.Version> jiraVersions;
+    private MinecraftObjects.Response lastSuccessfulMcResponse;
+    private JiraObjects.Response lastSuccessfulJiraResponse;
     private boolean checking = false;
 
     @Override
@@ -119,17 +121,20 @@ public class VersionCheckModule extends Module {
 
         this.checking = true;
 
-        MinecraftObjects.Version mcVersion = this.checkMinecraftUpdates();
-        if (mcVersion != null && this.mcUpdatesChannel != null) {
-            this.mcUpdatesChannel.sendMessage(I18nUtil.formatKey("version_checker.new_mc_version",
-                    mcVersion.type, mcVersion.id));
-        }
+        try {
+            MinecraftObjects.Version mcVersion = this.checkMinecraftUpdates();
+            if (mcVersion != null && this.mcUpdatesChannel != null) {
+                this.mcUpdatesChannel.sendMessage(I18nUtil.formatKey(
+                        "version_checker.new_mc_version", mcVersion.type, mcVersion.id));
+            }
 
-        JiraObjects.Version jiraVersion = this.checkJiraUpdates();
-        if (jiraVersion != null && this.jiraUpdatesChannel != null) {
-            this.jiraUpdatesChannel.sendMessage(I18nUtil.formatKey(
-                    "version_checker.new_jira_version",
-                    jiraVersion.name));
+            JiraObjects.Version jiraVersion = this.checkJiraUpdates();
+            if (jiraVersion != null && this.jiraUpdatesChannel != null) {
+                this.jiraUpdatesChannel.sendMessage(I18nUtil.formatKey(
+                        "version_checker.new_jira_version", jiraVersion.name));
+            }
+        } catch (Exception e) {
+            LOGGER.error("Found uncaught exception while checking updates", e);
         }
 
         this.checking = false;
@@ -178,6 +183,12 @@ public class VersionCheckModule extends Module {
         try {
             MinecraftObjects.Response response = this.getMinecraftResponse();
 
+            if (response == null) {
+                throw new IllegalStateException("The Minecraft response is null");
+            } else if (response.versions == null) {
+                throw new IllegalStateException("The Minecraft response contains no versions");
+            }
+
             return new ArrayList<>(response.versions);
         } catch (ExecutionException | InterruptedException | IOException e) {
             LOGGER.error("There was an error getting the Minecraft versions.", e);
@@ -188,6 +199,12 @@ public class VersionCheckModule extends Module {
     private ArrayList<JiraObjects.Version> getJiraVersions() {
         try {
             JiraObjects.Response response = this.getJiraResponse();
+
+            if (response == null) {
+                throw new IllegalStateException("The Jira response is null");
+            } else if (response.versions == null) {
+                throw new IllegalStateException("The Jira response contains no versions");
+            }
 
             return new ArrayList<>(response.versions);
         } catch (ExecutionException | IOException | InterruptedException e) {
@@ -218,7 +235,16 @@ public class VersionCheckModule extends Module {
                     }
                 }).get();
 
-        return MAPPER.readValue(response.getBodyText(), MinecraftObjects.Response.class);
+        if (response.getCode() / 100 != 2) {
+            LOGGER.error("Non 2xx status code {} sent by {}\n{}", response.getCode(),
+                    Config.MINECRAFT_URL, response.getBodyText());
+            return this.lastSuccessfulMcResponse;
+        }
+
+        MinecraftObjects.Response mcResponse = MAPPER.readValue(response.getBodyText(),
+                MinecraftObjects.Response.class);
+        this.lastSuccessfulMcResponse = mcResponse;
+        return mcResponse;
     }
 
     private JiraObjects.Response getJiraResponse()
@@ -243,7 +269,16 @@ public class VersionCheckModule extends Module {
                     }
                 }).get();
 
-        return MAPPER.readValue(response.getBodyText(), JiraObjects.Response.class);
+        if (response.getCode() / 100 != 2) {
+            LOGGER.error("Non 2xx status code {} sent by {}\n{}", response.getCode(),
+                    Config.JIRA_URL, response.getBodyText());
+            return this.lastSuccessfulJiraResponse;
+        }
+
+        JiraObjects.Response jiraResponse = MAPPER.readValue(response.getBodyText(),
+                JiraObjects.Response.class);
+        this.lastSuccessfulJiraResponse = jiraResponse;
+        return jiraResponse;
     }
 
     /**
