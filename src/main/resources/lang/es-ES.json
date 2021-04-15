@@ -1,6 +1,8 @@
 {
+    "command.broadcast.a_channel_invalid_type": "Uno de los canales configurados para anuncios no es de tipo 'text' (%d).",
+    "command.broadcast.channel_invalid_type": "Uno de los canales configurados para anuncios no es de tipo 'text' (%d).",
     "command.broadcast.channel_not_found": "El canal configurado para anuncios no ha podido ser encontrado.",
-    "command.broadcast.channel_invalid_type": "El canal configurado para anuncios no es de tipo 'text'.",
+    "command.broadcast.no_channel": "No hay un canal para anuncios configurado.",
     "command.broadcast.description": "Como echo, pero envía el mensaje al canal configurado para anuncios.",
     "command.echo.description": "Repite texto.",
     "command.echo.no_permission": "No tienes permiso para enviar mensajes en ese canal.",

@@ -55,31 +55,74 @@ public class BroadcastCommand implements Command {
 
     @Override
     public void execute(Message message, List<String> args) {
-        Optional<Channel> channelOptional = Main.getApi()
-                .getChannelById(BotConfig.CHANNEL_ID_BROADCAST);
+        List<Long> channelIds = BotConfig.CHANNEL_ID_BROADCAST;
+        if (channelIds.isEmpty()) {
+            message.getChannel().sendMessage(I18nUtil.key("command.broadcast.no_channel"));
+            Main.LOGGER.warn("There isn't any configured broadcasts channel.");
+        } else if (channelIds.size() == 1) {
+            Optional<Channel> channelOptional = Main.getApi().getChannelById(
+                    channelIds.get(0));
 
-        if (channelOptional.isPresent()) {
-            Optional<TextChannel> textChannelOptional = channelOptional.get().asTextChannel();
-            if (textChannelOptional.isPresent()) {
-                TextChannel textChannel = textChannelOptional.get();
-                String content = String.join(" ", args);
+            if (channelOptional.isPresent()) {
+                Optional<TextChannel> textChannelOptional = channelOptional.get().asTextChannel();
+                if (textChannelOptional.isPresent()) {
+                    TextChannel textChannel = textChannelOptional.get();
+                    String content = String.join(" ", args);
 
-                if (message.getAttachments().size() > 0) {
-                    MessageBuilder msgBuilder = new MessageBuilder().append(content);
-                    message.getAttachments().forEach(messageAttachment ->
-                            msgBuilder.addAttachment(messageAttachment.getUrl()));
-                    msgBuilder.send(textChannel);
+                    if (message.getAttachments().size() > 0) {
+                        MessageBuilder msgBuilder = new MessageBuilder().append(content);
+                        message.getAttachments().forEach(messageAttachment ->
+                                msgBuilder.addAttachment(messageAttachment.getUrl()));
+                        msgBuilder.send(textChannel);
+                    } else {
+                        textChannel.sendMessage(content);
+                    }
                 } else {
-                    textChannel.sendMessage(content);
+                    message.getChannel().sendMessage(
+                            I18nUtil.key("command.broadcast.channel_invalid_type"));
+                    Main.LOGGER.warn(
+                            "The configured channel for broadcasts is not of type 'text'.");
                 }
             } else {
                 message.getChannel().sendMessage(
-                        I18nUtil.key("command.broadcast.channel_invalid_type"));
-                Main.LOGGER.warn("The configured channel for broadcasts is not of type 'text'.");
+                        I18nUtil.key("command.broadcast.channel_not_found"));
+                Main.LOGGER.warn("The configured channel for broadcasts could not be found.");
             }
         } else {
-            message.getChannel().sendMessage(I18nUtil.key("command.broadcast.channel_not_found"));
-            Main.LOGGER.warn("The configured channel for broadcasts could not be found.");
+            for (Long channelId : channelIds) {
+                Optional<Channel> channelOptional = Main.getApi().getChannelById(
+                        channelId);
+
+                if (channelOptional.isPresent()) {
+                    Optional<TextChannel> textChannelOptional = channelOptional.get()
+                            .asTextChannel();
+                    if (textChannelOptional.isPresent()) {
+                        TextChannel textChannel = textChannelOptional.get();
+                        String content = String.join(" ", args);
+
+                        if (message.getAttachments().size() > 0) {
+                            MessageBuilder msgBuilder = new MessageBuilder().append(content);
+                            message.getAttachments().forEach(messageAttachment ->
+                                    msgBuilder.addAttachment(messageAttachment.getUrl()));
+                            msgBuilder.send(textChannel);
+                        } else {
+                            textChannel.sendMessage(content);
+                        }
+                    } else {
+                        message.getChannel().sendMessage(
+                                I18nUtil.formatKey("command.broadcast.a_channel_invalid_type",
+                                        channelId));
+                        Main.LOGGER.warn(
+                                "One of the configured channels for broadcasts is not of type "
+                                        + "'text' ({}).", channelId);
+                    }
+                } else {
+                    message.getChannel().sendMessage(
+                            I18nUtil.formatKey("command.broadcast.a_channel_not_found", channelId));
+                    Main.LOGGER.warn("One of the configured channels for broadcasts could not be "
+                            + "found ({}).", channelId);
+                }
+            }
         }
     }
 }
