@@ -1,5 +1,6 @@
 package cobaltumsmp.discordbot;
 
+import cobaltumsmp.discordbot.config.ConfigHelper;
 import cobaltumsmp.discordbot.i18n.I18nUtil;
 import org.javacord.api.entity.channel.Channel;
 import org.javacord.api.entity.channel.TextChannel;
@@ -201,7 +202,9 @@ public class Util {
     public static void loadDotEnv() throws IOException {
         File dotEnvFile = new File(".env");
         if (dotEnvFile.exists() && !dotEnvFile.isDirectory()) {
+            // TODO: Remove
             dotEnv.load(new FileReader(dotEnvFile));
+            ConfigHelper.loadConfigFile(dotEnvFile);
         }
     }
 
