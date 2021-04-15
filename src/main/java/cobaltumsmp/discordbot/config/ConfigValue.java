@@ -18,7 +18,11 @@ public class ConfigValue {
     protected static ConfigValue of(@Nonnull String name, @Nullable String value,
                                     boolean forceMultiple) {
         if (value == null) {
-            return new ConfigValue(name, "");
+            if (forceMultiple) {
+                return new ConfigValue(name, new ArrayList<>(Collections.singletonList("")));
+            } else {
+                return new ConfigValue(name, "");
+            }
         }
 
         value = value.trim();
