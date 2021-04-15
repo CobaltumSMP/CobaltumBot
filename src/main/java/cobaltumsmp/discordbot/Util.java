@@ -8,17 +8,14 @@ import org.javacord.api.entity.message.Message;
 
 import javax.annotation.Nonnull;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 
 /**
  * Utility methods.
  */
 public class Util {
-    private static final Properties dotEnv = new Properties();
     // Time units in seconds
     private static final long MINUTE = 60;
     private static final long HOUR = MINUTE * 60;
@@ -202,14 +199,7 @@ public class Util {
     public static void loadDotEnv() throws IOException {
         File dotEnvFile = new File(".env");
         if (dotEnvFile.exists() && !dotEnvFile.isDirectory()) {
-            // TODO: Remove
-            dotEnv.load(new FileReader(dotEnvFile));
             ConfigHelper.loadConfigFile(dotEnvFile);
         }
-    }
-
-    public static String getEnv(@Nonnull String variableName) {
-        return dotEnv.getProperty(variableName, isSystemEnvEmpty(variableName)
-                ? "" : System.getenv(variableName)).trim();
     }
 }

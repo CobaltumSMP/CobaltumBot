@@ -39,8 +39,8 @@ public class VersionCheckModule extends Module {
     private static final ScheduledExecutorService THREAD_POOL = Executors.newScheduledThreadPool(3,
             new ThreadFactoryBuilder().setNameFormat("version-checker-thread-%d").build());
     private final CloseableHttpAsyncClient httpClient = HttpAsyncClients.createDefault();
-    private TextChannel mcUpdatesChannel = null;
-    private TextChannel jiraUpdatesChannel = null;
+    private final ArrayList<TextChannel> mcUpdatesChannels = new ArrayList<>();
+    private final ArrayList<TextChannel> jiraUpdatesChannels = new ArrayList<>();
     private ArrayList<MinecraftObjects.Version> minecraftVersions;
     private ArrayList<JiraObjects.Version> jiraVersions;
     private MinecraftObjects.Response lastSuccessfulMcResponse;
@@ -57,24 +57,24 @@ public class VersionCheckModule extends Module {
         Optional<Channel> chn;
         Channel chn1;
 
-        // Get the MC updates channel
-        if (Util.isChannelByIdEmpty((chn
-                = Main.getApi().getChannelById(Config.CHANNEL_ID_MC_UPDATES)))
-                || Util.isTextChannelEmpty((chn1 = chn.get()))) {
-            LOGGER.warn("The Minecraft updates channel ('{}') is invalid.",
-                    Config.CHANNEL_ID_MC_UPDATES);
-        } else {
-            this.mcUpdatesChannel = chn1.asTextChannel().get();
+        // Get the MC updates channel(s)
+        for (Long id : Config.CHANNEL_ID_MC_UPDATES) {
+            if (Util.isChannelByIdEmpty((chn = Main.getApi().getChannelById(id)))
+                    || Util.isTextChannelEmpty((chn1 = chn.get()))) {
+                LOGGER.warn("One of the Minecraft updates channels ('{}') is invalid.", id);
+            } else {
+                this.mcUpdatesChannels.add(chn1.asTextChannel().get());
+            }
         }
 
-        // Get the Jira updates channel
-        if (Util.isChannelByIdEmpty((chn
-                = Main.getApi().getChannelById(Config.CHANNEL_ID_JIRA_UPDATES)))
-                || Util.isTextChannelEmpty((chn1 = chn.get()))) {
-            LOGGER.warn("The Jira updates channel ('{}') is invalid.",
-                    Config.CHANNEL_ID_JIRA_UPDATES);
-        } else {
-            this.jiraUpdatesChannel = chn1.asTextChannel().get();
+        // Get the Jira updates channel(s)
+        for (Long id : Config.CHANNEL_ID_JIRA_UPDATES) {
+            if (Util.isChannelByIdEmpty((chn = Main.getApi().getChannelById(id)))
+                    || Util.isTextChannelEmpty((chn1 = chn.get()))) {
+                LOGGER.warn("One of the Jira updates channels ('{}') is invalid.", id);
+            } else {
+                this.jiraUpdatesChannels.add(chn1.asTextChannel().get());
+            }
         }
 
         this.checking = true;
@@ -123,15 +123,19 @@ public class VersionCheckModule extends Module {
 
         try {
             MinecraftObjects.Version mcVersion = this.checkMinecraftUpdates();
-            if (mcVersion != null && this.mcUpdatesChannel != null) {
-                this.mcUpdatesChannel.sendMessage(I18nUtil.formatKey(
-                        "version_checker.new_mc_version", mcVersion.type, mcVersion.id));
+            if (mcVersion != null && !this.mcUpdatesChannels.isEmpty()) {
+                for (TextChannel chn : this.mcUpdatesChannels) {
+                    chn.sendMessage(I18nUtil.formatKey("version_checker.new_mc_version",
+                            mcVersion.type, mcVersion.id));
+                }
             }
 
             JiraObjects.Version jiraVersion = this.checkJiraUpdates();
-            if (jiraVersion != null && this.jiraUpdatesChannel != null) {
-                this.jiraUpdatesChannel.sendMessage(I18nUtil.formatKey(
-                        "version_checker.new_jira_version", jiraVersion.name));
+            if (jiraVersion != null && !this.jiraUpdatesChannels.isEmpty()) {
+                for (TextChannel chn : this.jiraUpdatesChannels) {
+                    chn.sendMessage(I18nUtil.formatKey("version_checker.new_jira_version",
+                            jiraVersion.name));
+                }
             }
         } catch (Exception e) {
             LOGGER.error("Found uncaught exception while checking updates", e);
