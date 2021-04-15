@@ -28,9 +28,7 @@ public class BroadcastCommand implements Command {
 
     @Override
     public String[] description() {
-        return new String[]{
-                I18nUtil.key("command.broadcast.description")
-        };
+        return new String[]{I18nUtil.key("command.broadcast.description")};
     }
 
     @Override
