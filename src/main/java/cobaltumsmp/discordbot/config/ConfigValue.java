@@ -6,6 +6,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * A single value that can be either a single or multiple Strings.
+ */
 public class ConfigValue {
     protected static ConfigValue of(@Nonnull String name, @Nullable String value) {
         if (value == null) {
@@ -48,6 +51,12 @@ public class ConfigValue {
         return this.string;
     }
 
+    /**
+     * Get the value as a single String, or throw an exception.
+     *
+     * @throws IllegalStateException if this config value isn't a single one
+     * @return the value as a single String
+     */
     @Nonnull
     public String getAsSingleOrFail() {
         if (!this.isSingle()) {
@@ -63,6 +72,12 @@ public class ConfigValue {
         return this.array;
     }
 
+    /**
+     * Get the values as an ArrayList of Strings, or throw an exception.
+     *
+     * @throws IllegalStateException if this config value isn't multiple
+     * @return the values as an ArrayList
+     */
     @Nonnull
     public ArrayList<String> getAsMultipleOrFail() {
         if (!this.isMultiple()) {
