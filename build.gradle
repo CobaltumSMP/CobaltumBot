@@ -9,28 +9,34 @@ repositories {
 }
 
 dependencies {
-    // Use JUnit test framework.
-    testImplementation 'junit:junit:4.13'
+    // Javacord
+    implementation "org.javacord:javacord:${javacordVersion}"
 
-    // This dependency is used by the application.
-    implementation 'org.javacord:javacord:3.1.2'
     // Logging
-    implementation 'org.apache.logging.log4j:log4j-core:2.14.0'
-    implementation 'org.apache.logging.log4j:log4j-slf4j18-impl:2.14.0'
+    implementation 'org.apache.logging.log4j:log4j-core:2.14.1'
+    implementation 'org.apache.logging.log4j:log4j-slf4j18-impl:2.14.1'
     // Database
-    implementation 'mysql:mysql-connector-java:5.1.44'
+    implementation 'mysql:mysql-connector-java:8.0.23'
     implementation 'org.apache.cayenne:cayenne-server:4.1'
 
     // Util
-    implementation 'com.vdurmont:emoji-java:5.1.1'
+    // Http requests
     implementation 'org.apache.httpcomponents.client5:httpclient5:5.0.3'
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.9.0'
-    implementation 'com.google.guava:guava:29.0-jre'
-    implementation 'org.jline:jline:3.19.0'
-    implementation 'com.google.code.findbugs:jsr305:3.0.2'
-
+    // Json parsing
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.12.3'
+    // Miscellaneous things
+    implementation 'com.google.guava:guava:30.1.1-jre'
     // RCON
     implementation files('libs/JRcon-2.0.jar')
+    // Javax annotations, may change by jetbrains annotations
+    implementation 'com.google.code.findbugs:jsr305:3.0.2'
+    // Console things
+    implementation 'org.jline:jline:3.19.0'
+    // Emoji util
+    implementation 'com.vdurmont:emoji-java:5.1.1'
+
+    // Use JUnit test framework.
+    testImplementation 'junit:junit:4.13.2'
 }
 
 if (System.getenv('GITHUB_RUN_NUMBER')) {
