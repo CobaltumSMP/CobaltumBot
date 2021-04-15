@@ -6,6 +6,7 @@ import cobaltumsmp.discordbot.command.EchoCommand;
 import cobaltumsmp.discordbot.command.HelpCommand;
 import cobaltumsmp.discordbot.command.PingCommand;
 import cobaltumsmp.discordbot.command.SetPresenceCommand;
+import cobaltumsmp.discordbot.config.ConfigHelper;
 import cobaltumsmp.discordbot.event.MessageListener;
 import cobaltumsmp.discordbot.i18n.Language;
 import cobaltumsmp.discordbot.module.Module;
@@ -50,6 +51,7 @@ public class Main {
      * A list of channels that can't be used for commands.
      */
     public static final List<Long> EXCLUSIVE_CHANNELS = new ArrayList<>();
+    private static List<String> DISABLED_MODULES;
     private static DiscordApi api;
 
     /**
@@ -65,7 +67,7 @@ public class Main {
 
         String token = "";
         try {
-            String tokenEnv = Util.getEnv("DISCORD_TOKEN");
+            String tokenEnv = ConfigHelper.get("DiscordToken", "DISCORD_TOKEN").getAsSingleOrFail();
             token = !tokenEnv.isEmpty() ? tokenEnv : args[0];
         } catch (ArrayIndexOutOfBoundsException e) {
             LOGGER.error("You must provide a discord token either with an argument or a "
@@ -83,6 +85,9 @@ public class Main {
         loadCommands();
         int eventCount = loadEventListeners();
         LOGGER.info("Loaded {} commands and {} events", COMMANDS.size(), eventCount);
+
+        DISABLED_MODULES = ConfigHelper.mapToList(ConfigHelper.get("DisabledModules",
+                "DISABLED_MODULES", true), String::toLowerCase);
 
         api = new DiscordApiBuilder().setToken(token).login()
                 .exceptionally(throwable -> {
@@ -183,7 +188,8 @@ public class Main {
 
     private static void disableModuleFromEnv(Module module) {
         String key = "MODULE_" + module.getId().toUpperCase() + "_ENABLED";
-        if (Util.getEnv(key).equalsIgnoreCase("false")) {
+        if (DISABLED_MODULES.contains(module.getId().toLowerCase())
+                || ConfigHelper.get(null, key).getAsSingleOrFail().equalsIgnoreCase("false")) {
             module.setEnabled(false);
             LOGGER.info("Module '{}' has been disabled via env variable.", module.name());
         }

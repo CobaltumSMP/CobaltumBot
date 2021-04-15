@@ -22,7 +22,7 @@ public class ConfigValue {
         }
 
         value = value.trim();
-        if (value.startsWith("[") && value.endsWith("]")) {
+        if (value.startsWith("[") && value.endsWith("]") || value.contains(",")) {
             List<String> list = Arrays.asList(value.replaceAll("[\\[\\] ]", "").split(","));
             return new ConfigValue(name, new ArrayList<>(list));
         } else if (forceMultiple) {
