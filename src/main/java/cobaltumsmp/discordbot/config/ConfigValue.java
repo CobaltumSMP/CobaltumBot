@@ -4,6 +4,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -11,6 +12,11 @@ import java.util.List;
  */
 public class ConfigValue {
     protected static ConfigValue of(@Nonnull String name, @Nullable String value) {
+        return of(name, value, false);
+    }
+
+    protected static ConfigValue of(@Nonnull String name, @Nullable String value,
+                                    boolean forceMultiple) {
         if (value == null) {
             return new ConfigValue(name, "");
         }
@@ -19,6 +25,8 @@ public class ConfigValue {
         if (value.startsWith("[") && value.endsWith("]")) {
             List<String> list = Arrays.asList(value.replaceAll("[\\[\\] ]", "").split(","));
             return new ConfigValue(name, new ArrayList<>(list));
+        } else if (forceMultiple) {
+            return new ConfigValue(name, new ArrayList<>(Collections.singletonList(value)));
         } else {
             return new ConfigValue(name, value);
         }

@@ -31,6 +31,11 @@ public class ConfigHelper {
         return ConfigValue.of(name == null ? "" : name, (String) config.get(key));
     }
 
+    @Nonnull
+    public static ConfigValue get(String name, @Nonnull String key, boolean forceMultiple) {
+        return ConfigValue.of(name == null ? "" : name, (String) config.get(key), forceMultiple);
+    }
+
     /**
      * Run a consumer for each of the value(s) of any {@link ConfigValue}.
      *
