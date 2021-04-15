@@ -32,6 +32,7 @@ jobs:
         reporter: github-check
         filter_mode: file
         fail_on_error: true
+        workdir: src/main
 
   build:
     name: Build
