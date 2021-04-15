@@ -1,6 +1,5 @@
 package cobaltumsmp.discordbot.module.versioncheck;
 
-import cobaltumsmp.discordbot.Util;
 import cobaltumsmp.discordbot.config.ConfigHelper;
 
 import java.util.List;
@@ -18,6 +17,9 @@ public class Config {
     public static final List<Long> CHANNEL_ID_JIRA_UPDATES = ConfigHelper.getMultipleIdsFromConfig(
             "VersionCheckerJiraUpdatesChannel(s)", "CHANNEL_ID_VC_JIRA");
     public static final int CHECK_DELAY;
+    public static final String SNAPSHOT_ARTICLE_URL_FORMAT =
+            ConfigHelper.get("SnapshotArticleUrlFormat",
+                    "VC_SNAPSHOT_ARTICLE_URL_FORMAT").getAsSingleOrFail();
 
     static {
         int checkDelay;

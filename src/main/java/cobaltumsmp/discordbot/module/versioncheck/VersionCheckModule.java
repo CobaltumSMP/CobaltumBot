@@ -124,17 +124,25 @@ public class VersionCheckModule extends Module {
         try {
             MinecraftObjects.Version mcVersion = this.checkMinecraftUpdates();
             if (mcVersion != null && !this.mcUpdatesChannels.isEmpty()) {
+                String url = null;
+                String snapshotUrlFormat = Config.SNAPSHOT_ARTICLE_URL_FORMAT;
+                if (mcVersion.type.equals("snapshot") && !snapshotUrlFormat.isEmpty()) {
+                    url = String.format(snapshotUrlFormat, mcVersion.id);
+                }
+
+                String msg = I18nUtil.formatKey("version_checker.new_mc_version",
+                        mcVersion.type, mcVersion.id);
                 for (TextChannel chn : this.mcUpdatesChannels) {
-                    chn.sendMessage(I18nUtil.formatKey("version_checker.new_mc_version",
-                            mcVersion.type, mcVersion.id));
+                    chn.sendMessage(msg + (url != null ? "\n" + url : ""));
                 }
             }
 
             JiraObjects.Version jiraVersion = this.checkJiraUpdates();
             if (jiraVersion != null && !this.jiraUpdatesChannels.isEmpty()) {
+                String msg = I18nUtil.formatKey("version_checker.new_jira_version",
+                        jiraVersion.name);
                 for (TextChannel chn : this.jiraUpdatesChannels) {
-                    chn.sendMessage(I18nUtil.formatKey("version_checker.new_jira_version",
-                            jiraVersion.name));
+                    chn.sendMessage(msg);
                 }
             }
         } catch (Exception e) {
