@@ -3,6 +3,7 @@ package cobaltumsmp.discordbot.module;
 import cobaltumsmp.discordbot.Main;
 import cobaltumsmp.discordbot.Roles;
 import cobaltumsmp.discordbot.Util;
+import cobaltumsmp.discordbot.config.ConfigHelper;
 import cobaltumsmp.discordbot.i18n.I18nUtil;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
@@ -88,15 +89,19 @@ public class RconModule extends Module {
     }
 
     static class Config {
-        public static final String CHANNEL_ID_RCON = Util.getEnv("CHANNEL_ID_RCON");
-        public static final String HOST = Util.getEnv("RCON_HOST");
-        public static final String PASS = Util.getEnv("RCON_PASS");
+        public static final long CHANNEL_ID_RCON = ConfigHelper.getIdFromConfig("RconChannelId",
+                "CHANNEL_ID_RCON");
+        public static final String HOST = ConfigHelper.get("RconHost", "RCON_HOST")
+                .getAsSingleOrFail();
+        public static final String PASS = ConfigHelper.get("RconPass", "RCON_PASS")
+                .getAsSingleOrFail();
         public static final int PORT;
 
         static {
             int port;
             try {
-                port = Integer.parseInt(Util.getEnv("RCON_PORT"));
+                port = Integer.parseInt(ConfigHelper.get("RconPort", "RCON_PORT")
+                        .getAsSingleOrFail());
             } catch (NumberFormatException e) {
                 LOGGER.warn("Invalid port provided.", e);
                 port = 25575;
@@ -174,7 +179,7 @@ public class RconModule extends Module {
                 return;
             }
 
-            if (!event.getChannel().getIdAsString().equals(Config.CHANNEL_ID_RCON)) {
+            if (event.getChannel().getId() != Config.CHANNEL_ID_RCON) {
                 return;
             }
 
