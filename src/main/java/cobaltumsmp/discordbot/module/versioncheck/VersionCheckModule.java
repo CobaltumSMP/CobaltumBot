@@ -156,7 +156,7 @@ public class VersionCheckModule extends Module {
         LOGGER.debug("Checking for Minecraft updates.");
 
         ArrayList<MinecraftObjects.Version> versions = this.getMinecraftVersions();
-        Optional<MinecraftObjects.Version> newVersion = findMismatch(this.minecraftVersions,
+        Optional<MinecraftObjects.Version> newVersion = findNewObject(this.minecraftVersions,
                 versions);
 
         if (newVersion.isEmpty()) {
@@ -176,7 +176,7 @@ public class VersionCheckModule extends Module {
         LOGGER.debug("Checking for Jira updates.");
 
         ArrayList<JiraObjects.Version> versions = this.getJiraVersions();
-        Optional<JiraObjects.Version> newVersion = findMismatch(this.jiraVersions, versions);
+        Optional<JiraObjects.Version> newVersion = findNewObject(this.jiraVersions, versions);
 
         if (newVersion.isEmpty()) {
             LOGGER.debug("Jira      | New version: N/A");
@@ -293,16 +293,20 @@ public class VersionCheckModule extends Module {
         return jiraResponse;
     }
 
-    /**
-     * Find a different element in two arraylists.
-     *
-     * @param a the base list
-     * @param b the list where to find the mismatch
-     * @param <T> type of the arraylists
-     * @return an optional of the mismatched element
-     */
-    private <T> Optional<T> findMismatch(ArrayList<T> a, ArrayList<T> b) {
-        int mismatchedIndex = Arrays.mismatch(a.toArray(), b.toArray());
-        return mismatchedIndex == -1 ? Optional.empty() : Optional.of(b.get(mismatchedIndex));
+    private static <T> Optional<T> findNewObject(ArrayList<T> currentObjects, ArrayList<T> newObjects) {
+        if (currentObjects.size() == newObjects.size()) {
+            int mismatch = Arrays.mismatch(currentObjects.toArray(), newObjects.toArray());
+            return mismatch == -1 ? Optional.empty() : Optional.of(newObjects.get(mismatch));
+        } else {
+            ArrayList<T> result = new ArrayList<>();
+            if (newObjects.size() > currentObjects.size()) {
+                result.addAll(newObjects);
+                result.removeAll(currentObjects);
+            } else {
+                result.addAll(currentObjects);
+                result.removeAll(newObjects);
+            }
+            return result.stream().findAny();
+        }
     }
 }
