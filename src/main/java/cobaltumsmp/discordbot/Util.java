@@ -9,6 +9,8 @@ import org.javacord.api.entity.message.Message;
 import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Map;
 import java.util.Optional;
 
@@ -81,6 +83,18 @@ public class Util {
      */
     public static void unexpectedErrorMessage(@Nonnull TextChannel channel) {
         channel.sendMessage(I18nUtil.key("unexpected_error"));
+    }
+
+    /**
+     * Write an exception's stack trace to a String.
+     *
+     * @param e the exception
+     * @return the stack trace as printed with {@link Exception#printStackTrace()}
+     */
+    public static String getFullStackTrace(Exception e) {
+        StringWriter writer = new StringWriter();
+        e.printStackTrace(new PrintWriter(writer));
+        return writer.toString();
     }
 
     /**

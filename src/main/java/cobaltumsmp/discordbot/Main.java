@@ -20,14 +20,17 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.DiscordApiBuilder;
+import org.javacord.api.entity.channel.TextChannel;
 import org.javacord.api.listener.GloballyAttachableListener;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -149,6 +152,10 @@ public class Main {
         COMMANDS.put(command.name(), command);
     }
 
+    public static void unloadCommand(String commandName) {
+        COMMANDS.remove(commandName);
+    }
+
     private static int loadEventListeners() {
         LISTENERS.add(new MessageListener());
         return LISTENERS.size();
@@ -197,6 +204,12 @@ public class Main {
 
     public static void addEventListener(GloballyAttachableListener listener) {
         api.addListener(listener);
+    }
+
+    @Nullable
+    public static TextChannel getBotMessagesChannel() {
+        Optional<TextChannel> optional = getApi().getTextChannelById(BotConfig.CHANNEL_ID_BOT_MESSAGES);
+        return optional.orElse(null);
     }
 
     public static DiscordApi getApi() {

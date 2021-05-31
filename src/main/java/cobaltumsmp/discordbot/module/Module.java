@@ -28,7 +28,7 @@ public abstract class Module {
         return this.enabled;
     }
 
-    public final void setEnabled(boolean enabled) {
+    public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
 

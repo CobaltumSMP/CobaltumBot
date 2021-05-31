@@ -25,6 +25,9 @@ public class BotConfig {
      */
     public static final List<Long> CHANNEL_ID_BROADCAST = ConfigHelper.getMultipleIdsFromConfig(
             "BroadcastChannelId(s)", "CHANNEL_ID_BROADCAST");
+
+    public static final long CHANNEL_ID_BOT_MESSAGES = ConfigHelper.getIdFromConfig(
+            "BotMessagesChannelId", "CHANNEL_ID_BOT_MSG");
     /**
      * The ID of the {@linkplain cobaltumsmp.discordbot.Roles#DEV Developer} role.
      */

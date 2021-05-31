@@ -17,6 +17,7 @@ import org.apache.logging.log4j.Logger;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.entity.channel.Channel;
 import org.javacord.api.entity.channel.TextChannel;
+import org.javacord.api.entity.message.MessageBuilder;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -26,6 +27,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -43,6 +45,10 @@ public class VersionCheckModule extends Module {
     private final ArrayList<TextChannel> jiraUpdatesChannels = new ArrayList<>();
     private ArrayList<MinecraftObjects.Version> minecraftVersions;
     private ArrayList<JiraObjects.Version> jiraVersions;
+    private ScheduledFuture<?> scheduledChecks;
+    @Nullable
+    private Exception cachedUncaughtException = null;
+    private int uncaughtExceptionCount = 0;
     private MinecraftObjects.Response lastSuccessfulMcResponse;
     private JiraObjects.Response lastSuccessfulJiraResponse;
     private boolean checking = false;
@@ -91,7 +97,7 @@ public class VersionCheckModule extends Module {
 
         LOGGER.debug("Scheduling version check task.");
 
-        THREAD_POOL.scheduleAtFixedRate(() -> {
+        this.scheduledChecks = THREAD_POOL.scheduleAtFixedRate(() -> {
             LOGGER.debug("Running scheduled version check task.");
 
             try {
@@ -111,6 +117,17 @@ public class VersionCheckModule extends Module {
     @Override
     public @Nullable Consumer<DiscordApi> getInstallFunction() {
         return discordApi -> Main.loadCommand(new VersionCheckCommand(this));
+    }
+
+    @Override
+    public void setEnabled(boolean enabled) {
+        super.setEnabled(enabled);
+        if (!enabled) {
+            if (this.scheduledChecks != null) {
+                this.scheduledChecks.cancel(false);
+            }
+            Main.unloadCommand("versioncheck");
+        }
     }
 
     protected void checkUpdates() {
@@ -147,9 +164,31 @@ public class VersionCheckModule extends Module {
             }
         } catch (Exception e) {
             LOGGER.error("Found uncaught exception while checking updates", e);
+            if (this.cachedUncaughtException != null
+                    && this.cachedUncaughtException.getClass() == e.getClass()
+                    && Arrays.equals(
+                            this.cachedUncaughtException.getStackTrace(), e.getStackTrace())) {
+                this.uncaughtExceptionCount++;
+            } else {
+                this.cachedUncaughtException = e;
+                this.uncaughtExceptionCount = 0;
+            }
         }
 
         this.checking = false;
+
+        if (this.uncaughtExceptionCount >= 4 && this.cachedUncaughtException != null) {
+            LOGGER.error("Found too many of the same exception in a row. Module will be disabled");
+            TextChannel channel = Main.getBotMessagesChannel();
+            if (channel != null) {
+                new MessageBuilder().setContent("Found too many of the same exception in a row. "
+                        + "Version Check Module will be disabled\n")
+                        .appendCode("java", Util.getFullStackTrace(this.cachedUncaughtException))
+                        .send(channel);
+            }
+
+            this.setEnabled(false);
+        }
     }
 
     private MinecraftObjects.Version checkMinecraftUpdates() {
