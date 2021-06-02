@@ -1,10 +1,11 @@
 package cobaltumsmp.discordbot.module.versioncheck;
 
 import cobaltumsmp.discordbot.Main;
-import cobaltumsmp.discordbot.Util;
 import cobaltumsmp.discordbot.i18n.I18nUtil;
 import cobaltumsmp.discordbot.module.Module;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequests;
@@ -15,14 +16,13 @@ import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.javacord.api.DiscordApi;
-import org.javacord.api.entity.channel.Channel;
 import org.javacord.api.entity.channel.TextChannel;
-import org.javacord.api.entity.message.MessageBuilder;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
+import javax.swing.text.html.Option;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -38,19 +38,14 @@ import java.util.function.Consumer;
 public class VersionCheckModule extends Module {
     protected static final Logger LOGGER = LogManager.getLogger();
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final ScheduledExecutorService THREAD_POOL = Executors.newScheduledThreadPool(3,
+    private static final ScheduledExecutorService THREAD_POOL = Executors.newScheduledThreadPool(4,
             new ThreadFactoryBuilder().setNameFormat("version-checker-thread-%d").build());
     private final CloseableHttpAsyncClient httpClient = HttpAsyncClients.createDefault();
-    private final ArrayList<TextChannel> mcUpdatesChannels = new ArrayList<>();
-    private final ArrayList<TextChannel> jiraUpdatesChannels = new ArrayList<>();
-    private ArrayList<MinecraftObjects.Version> minecraftVersions;
-    private ArrayList<JiraObjects.Version> jiraVersions;
+    private final Collection<TextChannel> mcUpdatesChannels = Sets.newHashSet();
+    private final Collection<TextChannel> jiraUpdatesChannels = Sets.newHashSet();
+    private final List<MinecraftObjects.Version> mcVersions = new ArrayList<>();
+    private final List<JiraObjects.Version> jiraVersions = new ArrayList<>();
     private ScheduledFuture<?> scheduledChecks;
-    @Nullable
-    private Exception cachedUncaughtException = null;
-    private int uncaughtExceptionCount = 0;
-    private MinecraftObjects.Response lastSuccessfulMcResponse;
-    private JiraObjects.Response lastSuccessfulJiraResponse;
     private boolean checking = false;
 
     @Override
@@ -60,56 +55,96 @@ public class VersionCheckModule extends Module {
 
     @Override
     public void init() {
-        Optional<Channel> chn;
-        Channel chn1;
+        Optional<TextChannel> textChannelOptional;
 
         // Get the MC updates channel(s)
         for (Long id : Config.CHANNEL_ID_MC_UPDATES) {
-            if (Util.isChannelByIdEmpty((chn = Main.getApi().getChannelById(id)))
-                    || Util.isTextChannelEmpty((chn1 = chn.get()))) {
+            if ((textChannelOptional = Main.getApi().getTextChannelById(id)).isEmpty()) {
                 LOGGER.warn("One of the Minecraft updates channels ('{}') is invalid.", id);
             } else {
-                this.mcUpdatesChannels.add(chn1.asTextChannel().get());
+                this.mcUpdatesChannels.add(textChannelOptional.get());
             }
         }
 
         // Get the Jira updates channel(s)
         for (Long id : Config.CHANNEL_ID_JIRA_UPDATES) {
-            if (Util.isChannelByIdEmpty((chn = Main.getApi().getChannelById(id)))
-                    || Util.isTextChannelEmpty((chn1 = chn.get()))) {
+            if ((textChannelOptional = Main.getApi().getTextChannelById(id)).isEmpty()) {
                 LOGGER.warn("One of the Jira updates channels ('{}') is invalid.", id);
             } else {
-                this.jiraUpdatesChannels.add(chn1.asTextChannel().get());
+                this.jiraUpdatesChannels.add(textChannelOptional.get());
             }
         }
 
-        this.checking = true;
+        if (Config.MINECRAFT_URL.isEmpty()) {
+            LOGGER.error("Minecraft url is unset!");
+            this.setEnabled(false);
+            return;
+        } else if (Config.JIRA_URL.isEmpty()) {
+            LOGGER.error("Jira url is unset!");
+            this.setEnabled(false);
+            return;
+        }
 
+        this.httpClient.start();
+        this.fetchInitialData(0);
+    }
+
+    private void fetchInitialData(int attempt) {
         LOGGER.info("Fetching initial data.");
-        httpClient.start();
+        List<MinecraftObjects.Version> mcVersions = new ArrayList<>();
+        List<JiraObjects.Version> jiraVersions = new ArrayList<>();
 
-        this.minecraftVersions = this.getMinecraftVersions();
-        this.jiraVersions = this.getJiraVersions();
-        LOGGER.info("Minecraft | Total versions: {}", this.minecraftVersions.size());
-        LOGGER.info("Jira      | Total versions: {}", this.jiraVersions.size());
+        try {
+            mcVersions.addAll(this.fetchMinecraftVersions());
+        } catch (ExecutionException e) {
+            LOGGER.error(
+                    "Failed to fetch the initial Minecraft versions. Is the server down?", e);
+        } catch (InterruptedException e) {
+            LOGGER.error("Failed to fetch the initial Minecraft versions "
+                    + "because the thread was interrupted", e);
+        } catch (JsonProcessingException e) {
+            LOGGER.error("Failed to parse the received response when fetching "
+                    + "the initial Minecraft versions", e);
+        }
 
-        this.checking = false;
+        try {
+            jiraVersions.addAll(this.fetchJiraVersions());
+        } catch (ExecutionException e) {
+            LOGGER.error(
+                    "Failed to fetch the initial Jira versions. Is the server down?", e);
+        } catch (InterruptedException e) {
+            LOGGER.error("Failed to fetch the initial Jira versions "
+                    + "because the thread was interrupted", e);
+        } catch (JsonProcessingException e) {
+            LOGGER.error("Failed to parse the received response when fetching "
+                    + "the initial Jira versions", e);
+        }
 
-        LOGGER.debug("Scheduling version check task.");
-
-        this.scheduledChecks = THREAD_POOL.scheduleAtFixedRate(() -> {
-            LOGGER.debug("Running scheduled version check task.");
-
-            try {
-                this.checkUpdates();
-            } catch (Exception e) {
-                LOGGER.error(
-                        "Encountered an error while running the scheduled version check task.", e);
+        this.mcVersions.addAll(mcVersions);
+        this.jiraVersions.addAll(jiraVersions);
+        if (this.mcVersions.isEmpty() && this.jiraVersions.isEmpty()) {
+            if (attempt >= 5) {
+                LOGGER.error("Too many failed attempts to fetch the initial data. "
+                        + "Disabling module");
+                this.setEnabled(false);
+            } else {
+                LOGGER.warn("Both Minecraft and Jira versions were empty, "
+                        + "attempting again in a minute");
+                final int attempt1 = ++attempt;
+                THREAD_POOL.schedule(() -> this.fetchInitialData(attempt1), 1, TimeUnit.MINUTES);
             }
-        }, Config.CHECK_DELAY / 2, Config.CHECK_DELAY, TimeUnit.SECONDS);
+            return;
+        } else if (this.mcVersions.isEmpty()) {
+            LOGGER.warn("No initial data for Minecraft, it will be fetched next check");
+        } else if (this.jiraVersions.isEmpty()) {
+            LOGGER.warn("No initial data for Jira, it will be fetched next check");
+        }
 
         LOGGER.debug("Scheduled version check task with {} seconds of delay.", Config.CHECK_DELAY);
-
+        this.scheduledChecks = THREAD_POOL.scheduleAtFixedRate(() -> {
+            LOGGER.debug("Running scheduled version check task.");
+            this.checkUpdates();
+        }, Config.CHECK_DELAY / 2, Config.CHECK_DELAY, TimeUnit.SECONDS);
         this.loaded = true;
         LOGGER.info("Module ready.");
     }
@@ -138,214 +173,119 @@ public class VersionCheckModule extends Module {
 
         this.checking = true;
 
+
         try {
-            MinecraftObjects.Version mcVersion = this.checkMinecraftUpdates();
-            if (mcVersion != null && !this.mcUpdatesChannels.isEmpty()) {
+            Optional<MinecraftObjects.Version> mcVersion = this.checkMinecraftUpdates();
+            if (mcVersion.isPresent() && !this.mcUpdatesChannels.isEmpty()) {
+                MinecraftObjects.Version version = mcVersion.get();
                 String url = null;
                 String snapshotUrlFormat = Config.SNAPSHOT_ARTICLE_URL_FORMAT;
-                if (mcVersion.type.equals("snapshot") && !snapshotUrlFormat.isEmpty()) {
-                    url = String.format(snapshotUrlFormat, mcVersion.id);
+                if (version.type.equals("snapshot") && !snapshotUrlFormat.isEmpty()) {
+                    url = String.format(snapshotUrlFormat, version.id);
                 }
 
                 String msg = I18nUtil.formatKey("version_checker.new_mc_version",
-                        mcVersion.type, mcVersion.id);
+                        version.type, version.id);
                 for (TextChannel chn : this.mcUpdatesChannels) {
                     chn.sendMessage(msg + (url != null ? "\n" + url : ""));
                 }
             }
 
-            JiraObjects.Version jiraVersion = this.checkJiraUpdates();
-            if (jiraVersion != null && !this.jiraUpdatesChannels.isEmpty()) {
+            Optional<JiraObjects.Version> jiraVersion = this.checkJiraUpdates();
+            if (jiraVersion.isPresent() && !this.jiraUpdatesChannels.isEmpty()) {
                 String msg = I18nUtil.formatKey("version_checker.new_jira_version",
-                        jiraVersion.name);
+                        jiraVersion.get().name);
                 for (TextChannel chn : this.jiraUpdatesChannels) {
                     chn.sendMessage(msg);
                 }
             }
         } catch (Exception e) {
             LOGGER.error("Found uncaught exception while checking updates", e);
-            if (this.cachedUncaughtException != null
-                    && this.cachedUncaughtException.getClass() == e.getClass()
-                    && Arrays.equals(
-                            this.cachedUncaughtException.getStackTrace(), e.getStackTrace())) {
-                this.uncaughtExceptionCount++;
-            } else {
-                this.cachedUncaughtException = e;
-                this.uncaughtExceptionCount = 0;
-            }
         }
 
         this.checking = false;
 
-        if (this.uncaughtExceptionCount >= 4 && this.cachedUncaughtException != null) {
-            LOGGER.error("Found too many of the same exception in a row. Module will be disabled");
-            TextChannel channel = Main.getBotMessagesChannel();
-            if (channel != null) {
-                new MessageBuilder().setContent("Found too many of the same exception in a row. "
-                        + "Version Check Module will be disabled\n")
-                        .appendCode("java", Util.getFullStackTrace(this.cachedUncaughtException))
-                        .send(channel);
-            }
-
-            this.setEnabled(false);
-        }
+        // TODO: Handle too many exceptions in a row.
     }
 
-    private MinecraftObjects.Version checkMinecraftUpdates() {
+    private Optional<MinecraftObjects.Version> checkMinecraftUpdates() {
         LOGGER.debug("Checking for Minecraft updates.");
+        Optional<MinecraftObjects.Version> result = Optional.empty();
 
-        ArrayList<MinecraftObjects.Version> versions = this.getMinecraftVersions();
-        Optional<MinecraftObjects.Version> newVersion = findNewObject(this.minecraftVersions,
-                versions);
-
-        if (newVersion.isEmpty()) {
-            LOGGER.debug("Minecraft | New version: N/A");
-            LOGGER.debug("Minecraft | Total versions: {}", versions.size());
-        } else {
-            LOGGER.info("Minecraft | New version: {}", newVersion.get().id);
-            LOGGER.info("Minecraft | Total versions: {}", versions.size());
-        }
-
-        this.minecraftVersions = versions;
-
-        return newVersion.orElse(null);
-    }
-
-    private JiraObjects.Version checkJiraUpdates() {
-        LOGGER.debug("Checking for Jira updates.");
-
-        ArrayList<JiraObjects.Version> versions = this.getJiraVersions();
-        Optional<JiraObjects.Version> newVersion = findNewObject(this.jiraVersions, versions);
-
-        if (newVersion.isEmpty()) {
-            LOGGER.debug("Jira      | New version: N/A");
-            LOGGER.debug("Jira      | Total versions: {}", versions.size());
-        } else {
-            LOGGER.info("Jira      | New version: {}", newVersion.get().name);
-            LOGGER.info("Jira      | Total versions: {}", versions.size());
-        }
-
-        this.jiraVersions = versions;
-
-        return newVersion.orElse(null);
-    }
-
-    private ArrayList<MinecraftObjects.Version> getMinecraftVersions() {
         try {
-            MinecraftObjects.Response response = this.getMinecraftResponse();
-
-            if (response == null) {
-                throw new IllegalStateException("The Minecraft response is null");
-            } else if (response.versions == null) {
-                throw new IllegalStateException("The Minecraft response contains no versions");
+            List<MinecraftObjects.Version> fetched = this.fetchMinecraftVersions();
+            if (this.mcVersions.size() < fetched.size()) {
+                List<MinecraftObjects.Version> list = new ArrayList<>(fetched);
+                list.removeAll(this.mcVersions);
+                result = list.stream().findAny();
             }
-
-            return new ArrayList<>(response.versions);
-        } catch (ExecutionException | InterruptedException | IOException e) {
-            LOGGER.error("There was an error getting the Minecraft versions.", e);
-            return new ArrayList<>();
+        } catch (ExecutionException e) {
+            // TODO
+        } catch (InterruptedException e) {
+            // TODO
+        } catch (JsonProcessingException e) {
+            // TODO
         }
+
+        return result;
     }
 
-    private ArrayList<JiraObjects.Version> getJiraVersions() {
+    private Optional<JiraObjects.Version> checkJiraUpdates() {
+        Optional<JiraObjects.Version> result = Optional.empty();
+
         try {
-            JiraObjects.Response response = this.getJiraResponse();
-
-            if (response == null) {
-                throw new IllegalStateException("The Jira response is null");
-            } else if (response.versions == null) {
-                throw new IllegalStateException("The Jira response contains no versions");
+            List<JiraObjects.Version> fetched = this.fetchJiraVersions();
+            if (this.mcVersions.size() < fetched.size()) {
+                List<JiraObjects.Version> list = new ArrayList<>(fetched);
+                list.removeAll(this.jiraVersions);
+                result = list.stream().findAny();
             }
-
-            return new ArrayList<>(response.versions);
-        } catch (ExecutionException | IOException | InterruptedException e) {
-            LOGGER.error("There was an error getting the Jira versions.", e);
-            return new ArrayList<>();
+        } catch (ExecutionException e) {
+            // TODO
+        } catch (InterruptedException e) {
+            // TODO
+        } catch (JsonProcessingException e) {
+            // TODO
         }
+
+        return result;
     }
 
-    private MinecraftObjects.Response getMinecraftResponse()
-            throws ExecutionException, InterruptedException, IOException {
-        SimpleHttpRequest request = SimpleHttpRequests.get(Config.MINECRAFT_URL);
-        final SimpleHttpResponse response = this.httpClient.execute(request,
-                new FutureCallback<>() {
-                    @Override
-                    public void completed(SimpleHttpResponse result) {
-                        LOGGER.debug("{} -> {}", Config.MINECRAFT_URL, result.getCode());
-                    }
-
-                    @Override
-                    public void failed(Exception ex) {
-                        LOGGER.error(Config.MINECRAFT_URL, ex);
-                        throw new IllegalStateException(ex);
-                    }
-
-                    @Override
-                    public void cancelled() {
-                        LOGGER.warn("Request to {} has been canceled.", Config.MINECRAFT_URL);
-                    }
-                }).get();
-
-        if (response.getCode() / 100 != 2) {
-            LOGGER.error("Non 2xx status code {} sent by {}\n{}", response.getCode(),
-                    Config.MINECRAFT_URL, response.getBodyText());
-            return this.lastSuccessfulMcResponse;
-        }
-
+    private List<MinecraftObjects.Version> fetchMinecraftVersions() throws ExecutionException,
+            InterruptedException, JsonProcessingException {
+        SimpleHttpResponse response = makeRequest(Config.MINECRAFT_URL);
         MinecraftObjects.Response mcResponse = MAPPER.readValue(response.getBodyText(),
                 MinecraftObjects.Response.class);
-        this.lastSuccessfulMcResponse = mcResponse;
-        return mcResponse;
+        return mcResponse.versions;
     }
 
-    private JiraObjects.Response getJiraResponse()
-            throws ExecutionException, InterruptedException, IOException {
-        SimpleHttpRequest request = SimpleHttpRequests.get(Config.JIRA_URL);
-        final SimpleHttpResponse response = this.httpClient.execute(request,
-                new FutureCallback<>() {
-                    @Override
-                    public void completed(SimpleHttpResponse result) {
-                        LOGGER.debug("{} -> {}", Config.JIRA_URL, result.getCode());
-                    }
-
-                    @Override
-                    public void failed(Exception ex) {
-                        LOGGER.error(Config.JIRA_URL, ex);
-                        throw new IllegalStateException(ex);
-                    }
-
-                    @Override
-                    public void cancelled() {
-                        LOGGER.warn("Request to {} has been canceled.", Config.JIRA_URL);
-                    }
-                }).get();
-
-        if (response.getCode() / 100 != 2) {
-            LOGGER.error("Non 2xx status code {} sent by {}\n{}", response.getCode(),
-                    Config.JIRA_URL, response.getBodyText());
-            return this.lastSuccessfulJiraResponse;
-        }
-
+    private List<JiraObjects.Version> fetchJiraVersions() throws ExecutionException,
+            InterruptedException, JsonProcessingException {
+        SimpleHttpResponse response = makeRequest(Config.JIRA_URL);
         JiraObjects.Response jiraResponse = MAPPER.readValue(response.getBodyText(),
                 JiraObjects.Response.class);
-        this.lastSuccessfulJiraResponse = jiraResponse;
-        return jiraResponse;
+        return jiraResponse.versions;
     }
 
-    private static <T> Optional<T> findNewObject(ArrayList<T> currentObjects, ArrayList<T> newObjects) {
-        if (currentObjects.size() == newObjects.size()) {
-            int mismatch = Arrays.mismatch(currentObjects.toArray(), newObjects.toArray());
-            return mismatch == -1 ? Optional.empty() : Optional.of(newObjects.get(mismatch));
-        } else {
-            ArrayList<T> result = new ArrayList<>();
-            if (newObjects.size() > currentObjects.size()) {
-                result.addAll(newObjects);
-                result.removeAll(currentObjects);
-            } else {
-                result.addAll(currentObjects);
-                result.removeAll(newObjects);
+    private SimpleHttpResponse makeRequest(String requestUrl) throws ExecutionException,
+            InterruptedException {
+        SimpleHttpRequest request = SimpleHttpRequests.get(requestUrl);
+        return this.httpClient.execute(request, new FutureCallback<>() {
+            @Override
+            public void completed(SimpleHttpResponse result) {
+                LOGGER.debug("Request to '{}' completed, response code: {}", requestUrl,
+                        result.getCode());
             }
-            return result.stream().findAny();
-        }
+
+            @Override
+            public void failed(Exception e) {
+                LOGGER.error("Request to '{}' failed", requestUrl, e);
+            }
+
+            @Override
+            public void cancelled() {
+                LOGGER.warn("Request to '{}' cancelled", requestUrl);
+            }
+        }).get();
     }
 }
