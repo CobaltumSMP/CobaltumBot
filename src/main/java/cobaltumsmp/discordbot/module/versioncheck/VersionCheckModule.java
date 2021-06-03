@@ -13,13 +13,13 @@ import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
 import org.apache.hc.core5.concurrent.FutureCallback;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.entity.channel.TextChannel;
 
 import javax.annotation.Nullable;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -287,6 +287,11 @@ public class VersionCheckModule extends Module {
                 result = list.stream().findAny();
                 this.jiraVersions.addAll(list);
             }
+
+            LOGGER.log(result.isPresent() ? Level.INFO : Level.DEBUG,
+                    "Jira      | New version: {}", result);
+            LOGGER.log(result.isPresent() ? Level.INFO : Level.DEBUG,
+                    "Jira      | Total versions: {}", this.jiraVersions.size());
         } catch (ExecutionException e) {
             LOGGER.error("Failed to check Jira updates. Is the server down?", e);
             throw new VersionCheckException(e);
@@ -338,6 +343,11 @@ public class VersionCheckModule extends Module {
                 result = list.stream().findAny();
                 this.mcVersions.addAll(list);
             }
+
+            LOGGER.log(result.isPresent() ? Level.INFO : Level.DEBUG,
+                    "Minecraft | New version: {}", result);
+            LOGGER.log(result.isPresent() ? Level.INFO : Level.DEBUG,
+                    "Minecraft | Total versions: {}", this.mcVersions.size());
         } catch (ExecutionException e) {
             LOGGER.error("Failed to check Minecraft updates. Is the server down?", e);
             throw new VersionCheckException(e);
