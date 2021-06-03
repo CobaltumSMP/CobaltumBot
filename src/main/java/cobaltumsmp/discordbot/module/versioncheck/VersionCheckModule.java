@@ -136,8 +136,19 @@ public class VersionCheckModule extends Module {
             return;
         } else if (this.mcVersions.isEmpty()) {
             LOGGER.warn("No initial data for Minecraft, it will be fetched next check");
+
+            LOGGER.info("Jira      | Total versions: {}", this.jiraVersions.size());
+            LOGGER.info("Jira      | Latest version: {}", this.getLatestJiraVersionName());
         } else if (this.jiraVersions.isEmpty()) {
             LOGGER.warn("No initial data for Jira, it will be fetched next check");
+
+            LOGGER.info("Minecraft | Total versions: {}", this.mcVersions.size());
+            LOGGER.info("Minecraft | Latest version: {}", this.getLatestMcVersionId());
+        } else {
+            LOGGER.info("Minecraft | Total versions: {}", this.mcVersions.size());
+            LOGGER.info("Minecraft | Latest version: {}", this.getLatestMcVersionId());
+            LOGGER.info("Jira      | Total versions: {}", this.jiraVersions.size());
+            LOGGER.info("Jira      | Latest version: {}", this.getLatestJiraVersionName());
         }
 
         LOGGER.debug("Scheduled version check task with {} seconds of delay.", Config.CHECK_DELAY);
@@ -163,6 +174,34 @@ public class VersionCheckModule extends Module {
             }
             Main.unloadCommand("versioncheck");
         }
+    }
+
+    protected static String getMcVersionId(Optional<MinecraftObjects.Version> version) {
+        return version.isPresent() ? version.get().id : "N/A";
+    }
+
+    protected Optional<MinecraftObjects.Version> getLatestMcVersion() {
+        return !this.mcVersions.isEmpty()
+                ? Optional.ofNullable(this.mcVersions.get(this.mcVersions.size() - 1))
+                : Optional.empty();
+    }
+
+    protected String getLatestMcVersionId() {
+        return getMcVersionId(this.getLatestMcVersion());
+    }
+
+    protected static String getJiraVersionName(Optional<JiraObjects.Version> version) {
+        return version.isPresent() ? version.get().name : "N/A";
+    }
+
+    protected Optional<JiraObjects.Version> getLatestJiraVersion() {
+        return !this.jiraVersions.isEmpty()
+                ? Optional.ofNullable(this.jiraVersions.get(this.jiraVersions.size() - 1))
+                : Optional.empty();
+    }
+
+    protected String getLatestJiraVersionName() {
+        return getJiraVersionName(this.getLatestJiraVersion());
     }
 
     protected void checkUpdates() {
