@@ -1,6 +1,7 @@
 package cobaltumsmp.discordbot.module.versioncheck;
 
 import cobaltumsmp.discordbot.Main;
+import cobaltumsmp.discordbot.Util;
 import cobaltumsmp.discordbot.i18n.I18nUtil;
 import cobaltumsmp.discordbot.module.Module;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -18,9 +19,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.entity.channel.TextChannel;
+import org.javacord.api.entity.message.MessageBuilder;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
@@ -47,6 +50,8 @@ public class VersionCheckModule extends Module {
     private final Collection<TextChannel> mcUpdatesChannels = Sets.newHashSet();
     private final List<MinecraftObjects.Version> mcVersions = new ArrayList<>();
     private final List<JiraObjects.Version> jiraVersions = new ArrayList<>();
+    private Exception cachedException;
+    private int cachedExceptionCount;
     private ScheduledFuture<?> scheduledChecks;
     private boolean checking = false;
 
@@ -266,11 +271,26 @@ public class VersionCheckModule extends Module {
             throw e;
         } catch (Exception e) {
             LOGGER.error("Found uncaught exception while checking updates", e);
+            if (this.cachedException != null
+                    && this.cachedException.getClass() == e.getClass()
+                    && Arrays.equals(
+                    this.cachedException.getStackTrace(), e.getStackTrace())) {
+                this.cachedExceptionCount++;
+            } else {
+                this.cachedException = e;
+                this.cachedExceptionCount = 0;
+            }
         }
 
         this.checking = false;
 
-        // TODO: Handle too many exceptions in a row.
+        if (this.cachedExceptionCount >= 4 && this.cachedException != null) {
+            LOGGER.error("Found too many of the same exception in a row. Module will be disabled");
+            Util.sendStacktraceBotMessage("Found too many of the same exception in a row. "
+                    + "Version Check Module will be disabled\n", this.cachedException);
+
+            this.setEnabled(false);
+        }
     }
 
     private Optional<JiraObjects.Version> checkJiraUpdates() {
