@@ -19,7 +19,6 @@ import org.javacord.api.DiscordApi;
 import org.javacord.api.entity.channel.TextChannel;
 
 import javax.annotation.Nullable;
-import javax.swing.text.html.Option;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -248,11 +247,12 @@ public class VersionCheckModule extends Module {
     }
 
     private Optional<JiraObjects.Version> checkJiraUpdates() {
+        LOGGER.debug("Checking for Jira updates.");
         Optional<JiraObjects.Version> result = Optional.empty();
 
         try {
             List<JiraObjects.Version> fetched = this.fetchJiraVersions();
-            if (this.mcVersions.size() < fetched.size()) {
+            if (this.jiraVersions.size() < fetched.size()) {
                 List<JiraObjects.Version> list = new ArrayList<>(fetched);
                 list.removeAll(this.jiraVersions);
                 result = list.stream().findAny();
