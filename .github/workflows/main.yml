@@ -26,9 +26,10 @@ jobs:
 #        Ignore gradle wrapper files
 #        FILTER_REGEX_EXCLUDE: gradlew|gradlew\.bat|gradle\/.*
     - name: Run Checkstyle
-      uses: dbelyaev/action-checkstyle@master
+      uses: dbelyaev/action-checkstyle@0.3.4
       with:
         checkstyle_config: .github/linters/sun_checks.xml
+        checkstyle_version: 8.41.1
         reporter: github-check
         filter_mode: file
         fail_on_error: true
