@@ -58,7 +58,7 @@
     "time_unit.seconds": "%d second(s)",
     "version_checker.command.versioncheck.description": "Execute a version check.",
     "version_checker.command.versioncheck.executing": "Executing version check task.",
-    "version_checker.command.versioncheck.successful": "Version check task ran successfully.",
+    "version_checker.command.versioncheck.successful": "Version check task ran successfully.\nLatest Minecraft version: %s\nTotal Minecraft versions: %d\nLatest Jira version: %s\nTotal Jira versions: %d",
     "version_checker.new_mc_version": "A new Minecraft %s is out: %s!",
     "version_checker.new_jira_version": "A new version has been added to the Minecraft issue tracker: %s",
     "generic_error": "There was an error.",

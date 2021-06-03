@@ -359,6 +359,14 @@ public class VersionCheckModule extends Module {
         }).get();
     }
 
+    public int getJiraVersionCount() {
+        return this.jiraVersions.size();
+    }
+
+    public int getMinecraftVersionCount() {
+        return this.mcVersions.size();
+    }
+
     /**
      * Exception thrown in {@link #checkJiraUpdates()} and {@link #checkMinecraftUpdates()}.
      * Its cause is either an {@link ExecutionException}, an {@link InterruptedException} or a

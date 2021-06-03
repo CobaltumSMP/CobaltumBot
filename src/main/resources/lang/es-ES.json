@@ -57,7 +57,7 @@
     "time_unit.seconds": "%d segundo(s)",
     "version_checker.command.versioncheck.description": "Revisa versiones.",
     "version_checker.command.versioncheck.executing": "Revisando versiones.",
-    "version_checker.command.versioncheck.successful": "Revisión de versiones ejecutada con éxito.",
+    "version_checker.command.versioncheck.successful": "Revisión de versiones ejecutada con éxito.\nUltima versión de Minecraft: %s\nVersiones de Minecraft totales: %d\nUltima versión de Jira: %s\nVersiones de Jira totales: %d",
     "version_checker.new_mc_version": "Una nueva %s de Minecraft ha sido lanzada: %s!",
     "version_checker.new_jira_version": "Una nueva versión ha sido añadida al seguidor de problemas de Mojang: %s",
     "generic_error": "Hubo un error.",

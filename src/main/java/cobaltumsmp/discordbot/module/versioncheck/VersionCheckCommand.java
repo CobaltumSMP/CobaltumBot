@@ -45,8 +45,12 @@ public class VersionCheckCommand extends Module.ModuleCommand<VersionCheckModule
 
         try {
             this.module.checkUpdates();
-            message.getChannel().sendMessage(I18nUtil.key(
-                    "version_checker.command.versioncheck.successful"));
+            message.getChannel().sendMessage(I18nUtil.formatKey(
+                    "version_checker.command.versioncheck.successful",
+                    this.module.getLatestMcVersionId(),
+                    this.module.getMinecraftVersionCount(),
+                    this.module.getLatestJiraVersionName(),
+                    this.module.getJiraVersionCount()));
         } catch (VersionCheckModule.VersionCheckException e) {
             // Has already been logged in either #checkMinecraftUpdates or #checkJiraUpdates
             Util.errorMessageResponse(message);
