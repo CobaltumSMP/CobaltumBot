@@ -258,11 +258,11 @@ public class VersionCheckModule extends Module {
                 result = list.stream().findAny();
             }
         } catch (ExecutionException e) {
-            // TODO
+            LOGGER.error("Failed to check Jira updates. Is the server down?", e);
         } catch (InterruptedException e) {
-            // TODO
+            LOGGER.error("Failed to check Jira updates because the thread was interrupted", e);
         } catch (JsonProcessingException e) {
-            // TODO
+            LOGGER.error("Failed to parse the received response when checking Jira updates", e);
         }
 
         return result;
@@ -280,11 +280,12 @@ public class VersionCheckModule extends Module {
                 result = list.stream().findAny();
             }
         } catch (ExecutionException e) {
-            // TODO
+            LOGGER.error("Failed to check Minecraft updates. Is the server down?", e);
         } catch (InterruptedException e) {
-            // TODO
+            LOGGER.error("Failed to check Minecraft updates because the thread was interrupted", e);
         } catch (JsonProcessingException e) {
-            // TODO
+            LOGGER.error("Failed to parse the received response when checking Minecraft updates",
+                    e);
         }
 
         return result;
