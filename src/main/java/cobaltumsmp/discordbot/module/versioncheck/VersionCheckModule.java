@@ -153,7 +153,11 @@ public class VersionCheckModule extends Module {
         LOGGER.debug("Scheduled version check task with {} seconds of delay.", Config.CHECK_DELAY);
         this.scheduledChecks = THREAD_POOL.scheduleAtFixedRate(() -> {
             LOGGER.debug("Running scheduled version check task.");
-            this.checkUpdates();
+            try {
+                this.checkUpdates();
+            } catch (VersionCheckException ignored) {
+                // Ignore, already logged
+            }
         }, Config.CHECK_DELAY / 2, Config.CHECK_DELAY, TimeUnit.SECONDS);
         this.loaded = true;
         LOGGER.info("Module ready.");
@@ -211,32 +215,52 @@ public class VersionCheckModule extends Module {
 
         this.checking = true;
 
-
         try {
-            Optional<JiraObjects.Version> jiraVersion = this.checkJiraUpdates();
-            if (jiraVersion.isPresent() && !this.jiraUpdatesChannels.isEmpty()) {
-                String msg = I18nUtil.formatKey("version_checker.new_jira_version",
-                        jiraVersion.get().name);
-                for (TextChannel chn : this.jiraUpdatesChannels) {
-                    chn.sendMessage(msg);
+            VersionCheckException versionCheckException = null;
+            try {
+                Optional<JiraObjects.Version> jiraVersion = this.checkJiraUpdates();
+                if (jiraVersion.isPresent() && !this.jiraUpdatesChannels.isEmpty()) {
+                    String msg = I18nUtil.formatKey("version_checker.new_jira_version",
+                            jiraVersion.get().name);
+                    for (TextChannel chn : this.jiraUpdatesChannels) {
+                        chn.sendMessage(msg);
+                    }
+                }
+            } catch (VersionCheckException e) {
+                versionCheckException = e;
+            }
+
+            try {
+                Optional<MinecraftObjects.Version> mcVersion = this.checkMinecraftUpdates();
+                if (mcVersion.isPresent() && !this.mcUpdatesChannels.isEmpty()) {
+                    MinecraftObjects.Version version = mcVersion.get();
+                    String url = null;
+                    String snapshotUrlFormat = Config.SNAPSHOT_ARTICLE_URL_FORMAT;
+                    if (version.type.equals("snapshot") && !snapshotUrlFormat.isEmpty()) {
+                        url = String.format(snapshotUrlFormat, version.id);
+                    }
+
+                    String msg = I18nUtil.formatKey("version_checker.new_mc_version",
+                            version.type, version.id);
+                    for (TextChannel chn : this.mcUpdatesChannels) {
+                        chn.sendMessage(msg + (url != null ? "\n" + url : ""));
+                    }
+                }
+            } catch (VersionCheckException e) {
+                if (versionCheckException != null) {
+                    versionCheckException.addSuppressed(e);
+                } else {
+                    versionCheckException = e;
                 }
             }
 
-            Optional<MinecraftObjects.Version> mcVersion = this.checkMinecraftUpdates();
-            if (mcVersion.isPresent() && !this.mcUpdatesChannels.isEmpty()) {
-                MinecraftObjects.Version version = mcVersion.get();
-                String url = null;
-                String snapshotUrlFormat = Config.SNAPSHOT_ARTICLE_URL_FORMAT;
-                if (version.type.equals("snapshot") && !snapshotUrlFormat.isEmpty()) {
-                    url = String.format(snapshotUrlFormat, version.id);
-                }
-
-                String msg = I18nUtil.formatKey("version_checker.new_mc_version",
-                        version.type, version.id);
-                for (TextChannel chn : this.mcUpdatesChannels) {
-                    chn.sendMessage(msg + (url != null ? "\n" + url : ""));
-                }
+            if (versionCheckException != null) {
+                throw versionCheckException;
             }
+        } catch (VersionCheckException e) {
+            this.checking = false;
+
+            throw e;
         } catch (Exception e) {
             LOGGER.error("Found uncaught exception while checking updates", e);
         }
@@ -259,10 +283,13 @@ public class VersionCheckModule extends Module {
             }
         } catch (ExecutionException e) {
             LOGGER.error("Failed to check Jira updates. Is the server down?", e);
+            throw new VersionCheckException(e);
         } catch (InterruptedException e) {
             LOGGER.error("Failed to check Jira updates because the thread was interrupted", e);
+            throw new VersionCheckException(e);
         } catch (JsonProcessingException e) {
             LOGGER.error("Failed to parse the received response when checking Jira updates", e);
+            throw new VersionCheckException(e);
         }
 
         return result;
@@ -281,11 +308,14 @@ public class VersionCheckModule extends Module {
             }
         } catch (ExecutionException e) {
             LOGGER.error("Failed to check Minecraft updates. Is the server down?", e);
+            throw new VersionCheckException(e);
         } catch (InterruptedException e) {
             LOGGER.error("Failed to check Minecraft updates because the thread was interrupted", e);
+            throw new VersionCheckException(e);
         } catch (JsonProcessingException e) {
             LOGGER.error("Failed to parse the received response when checking Minecraft updates",
                     e);
+            throw new VersionCheckException(e);
         }
 
         return result;
@@ -327,5 +357,16 @@ public class VersionCheckModule extends Module {
                 LOGGER.warn("Request to '{}' cancelled", requestUrl);
             }
         }).get();
+    }
+
+    /**
+     * Exception thrown in {@link #checkJiraUpdates()} and {@link #checkMinecraftUpdates()}.
+     * Its cause is either an {@link ExecutionException}, an {@link InterruptedException} or a
+     * {@link JsonProcessingException}.
+     */
+    protected static class VersionCheckException extends RuntimeException {
+        private VersionCheckException(Throwable cause) {
+            super(cause);
+        }
     }
 }

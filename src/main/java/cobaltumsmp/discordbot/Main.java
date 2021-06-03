@@ -208,8 +208,7 @@ public class Main {
 
     @Nullable
     public static TextChannel getBotMessagesChannel() {
-        Optional<TextChannel> optional = getApi().getTextChannelById(BotConfig.CHANNEL_ID_BOT_MESSAGES);
-        return optional.orElse(null);
+        return getApi().getTextChannelById(BotConfig.CHANNEL_ID_BOT_MESSAGES).orElse(null);
     }
 
     public static DiscordApi getApi() {

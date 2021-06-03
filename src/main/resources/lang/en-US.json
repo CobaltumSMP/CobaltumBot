@@ -61,5 +61,6 @@
     "version_checker.command.versioncheck.successful": "Version check task ran successfully.",
     "version_checker.new_mc_version": "A new Minecraft %s is out: %s!",
     "version_checker.new_jira_version": "A new version has been added to the Minecraft issue tracker: %s",
-    "unexpected_error": "There was an unexpected error."
+    "generic_error": "There was an error.",
+    "unexpected_error": "There was an unexpected error. Please notify a staff member."
 }

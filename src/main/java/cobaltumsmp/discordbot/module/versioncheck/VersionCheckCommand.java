@@ -47,6 +47,11 @@ public class VersionCheckCommand extends Module.ModuleCommand<VersionCheckModule
             this.module.checkUpdates();
             message.getChannel().sendMessage(I18nUtil.key(
                     "version_checker.command.versioncheck.successful"));
+        } catch (VersionCheckModule.VersionCheckException e) {
+            // Has already been logged in either #checkMinecraftUpdates or #checkJiraUpdates
+            Util.errorMessageResponse(message);
+            Util.sendStacktraceBotMessage(
+                    "Found an exception while executing a version check command", e);
         } catch (Exception e) {
             VersionCheckModule.LOGGER.error(
                     "Encountered an error while running the requested version check task.", e);

@@ -5,14 +5,18 @@ import cobaltumsmp.discordbot.i18n.I18nUtil;
 import org.javacord.api.entity.channel.Channel;
 import org.javacord.api.entity.channel.TextChannel;
 import org.javacord.api.entity.message.Message;
+import org.javacord.api.entity.message.MessageBuilder;
 
 import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.StringTokenizer;
 
 /**
  * Utility methods.
@@ -71,6 +75,14 @@ public class Util {
         return false;
     }
 
+    public static void errorMessageResponse(@Nonnull Message message) {
+        errorMessageResponse(message.getChannel());
+    }
+
+    public static void errorMessageResponse(@Nonnull TextChannel channel) {
+        channel.sendMessage(I18nUtil.key("generic_error"));
+    }
+
     /**
      * Sends "There was an unexpected error." to the channel of the provided message.
      */
@@ -83,6 +95,44 @@ public class Util {
      */
     public static void unexpectedErrorMessage(@Nonnull TextChannel channel) {
         channel.sendMessage(I18nUtil.key("unexpected_error"));
+    }
+
+    /**
+     * Send an exception's full stack trace to the bot channel.
+     *
+     * @param message exception context
+     * @param e the exception
+     */
+    public static void sendStacktraceBotMessage(String message, Exception e) {
+        TextChannel channel = Main.getBotMessagesChannel();
+        if (channel != null) {
+            String stacktrace = getFullStackTrace(e);
+            if (message.length() + stacktrace.length() < 1980) {
+                new MessageBuilder().setContent(message).appendCode("java", stacktrace)
+                        .send(channel);
+                return;
+            }
+
+            List<MessageBuilder> messages = new ArrayList<>();
+            messages.add(new MessageBuilder().setContent(message));
+            StringTokenizer tokenizer = new StringTokenizer(stacktrace, "\n");
+            StringBuilder builder = new StringBuilder();
+
+            while (tokenizer.hasMoreTokens()) {
+                String str = tokenizer.nextToken();
+
+                if (builder.length() + str.length() < 1980) {
+                    builder.append(str);
+                } else if (str.length() >= 1980) { // shouldn't really happen
+                    builder.append("[...]");
+                } else {
+                    messages.add(new MessageBuilder().appendCode("java", builder.toString()));
+                    builder.setLength(0);
+                }
+            }
+
+            messages.forEach(messageBuilder -> messageBuilder.send(channel));
+        }
     }
 
     /**

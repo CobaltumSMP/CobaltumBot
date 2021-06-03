@@ -60,5 +60,6 @@
     "version_checker.command.versioncheck.successful": "Revisión de versiones ejecutada con éxito.",
     "version_checker.new_mc_version": "Una nueva %s de Minecraft ha sido lanzada: %s!",
     "version_checker.new_jira_version": "Una nueva versión ha sido añadida al seguidor de problemas de Mojang: %s",
+    "generic_error": "Hubo un error.",
     "unexpected_error": "Hubo un error inesperado. Por favor notifica a un miembro del staff."
 }
