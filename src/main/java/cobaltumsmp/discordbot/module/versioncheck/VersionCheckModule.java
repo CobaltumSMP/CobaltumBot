@@ -199,7 +199,7 @@ public class VersionCheckModule extends Module {
 
     protected Optional<MinecraftObjects.Version> getLatestMcVersion() {
         return !this.mcVersions.isEmpty()
-                ? Optional.ofNullable(this.mcVersions.get(this.mcVersions.size() - 1))
+                ? Optional.ofNullable(this.mcVersions.get(0))
                 : Optional.empty();
     }
 
