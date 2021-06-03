@@ -280,6 +280,8 @@ public class VersionCheckModule extends Module {
                 List<JiraObjects.Version> list = new ArrayList<>(fetched);
                 list.removeAll(this.jiraVersions);
                 result = list.stream().findAny();
+                this.jiraVersions.clear();
+                this.jiraVersions.addAll(fetched);
             }
         } catch (ExecutionException e) {
             LOGGER.error("Failed to check Jira updates. Is the server down?", e);
@@ -305,6 +307,8 @@ public class VersionCheckModule extends Module {
                 List<MinecraftObjects.Version> list = new ArrayList<>(fetched);
                 list.removeAll(this.mcVersions);
                 result = list.stream().findAny();
+                this.mcVersions.clear();
+                this.mcVersions.addAll(fetched);
             }
         } catch (ExecutionException e) {
             LOGGER.error("Failed to check Minecraft updates. Is the server down?", e);
