@@ -289,7 +289,7 @@ public class VersionCheckModule extends Module {
             }
 
             LOGGER.log(result.isPresent() ? Level.INFO : Level.DEBUG,
-                    "Jira      | New version: {}", result);
+                    "Jira      | New version: {}", result.isPresent() ? result.get().name : "N/A");
             LOGGER.log(result.isPresent() ? Level.INFO : Level.DEBUG,
                     "Jira      | Total versions: {}", this.jiraVersions.size());
         } catch (ExecutionException e) {
@@ -345,7 +345,7 @@ public class VersionCheckModule extends Module {
             }
 
             LOGGER.log(result.isPresent() ? Level.INFO : Level.DEBUG,
-                    "Minecraft | New version: {}", result);
+                    "Minecraft | New version: {}", result.isPresent() ? result.get().id : "N/A");
             LOGGER.log(result.isPresent() ? Level.INFO : Level.DEBUG,
                     "Minecraft | Total versions: {}", this.mcVersions.size());
         } catch (ExecutionException e) {
