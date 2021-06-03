@@ -41,8 +41,8 @@ public class VersionCheckModule extends Module {
     private static final ScheduledExecutorService THREAD_POOL = Executors.newScheduledThreadPool(4,
             new ThreadFactoryBuilder().setNameFormat("version-checker-thread-%d").build());
     private final CloseableHttpAsyncClient httpClient = HttpAsyncClients.createDefault();
-    private final Collection<TextChannel> mcUpdatesChannels = Sets.newHashSet();
     private final Collection<TextChannel> jiraUpdatesChannels = Sets.newHashSet();
+    private final Collection<TextChannel> mcUpdatesChannels = Sets.newHashSet();
     private final List<MinecraftObjects.Version> mcVersions = new ArrayList<>();
     private final List<JiraObjects.Version> jiraVersions = new ArrayList<>();
     private ScheduledFuture<?> scheduledChecks;
@@ -57,15 +57,6 @@ public class VersionCheckModule extends Module {
     public void init() {
         Optional<TextChannel> textChannelOptional;
 
-        // Get the MC updates channel(s)
-        for (Long id : Config.CHANNEL_ID_MC_UPDATES) {
-            if ((textChannelOptional = Main.getApi().getTextChannelById(id)).isEmpty()) {
-                LOGGER.warn("One of the Minecraft updates channels ('{}') is invalid.", id);
-            } else {
-                this.mcUpdatesChannels.add(textChannelOptional.get());
-            }
-        }
-
         // Get the Jira updates channel(s)
         for (Long id : Config.CHANNEL_ID_JIRA_UPDATES) {
             if ((textChannelOptional = Main.getApi().getTextChannelById(id)).isEmpty()) {
@@ -75,12 +66,21 @@ public class VersionCheckModule extends Module {
             }
         }
 
-        if (Config.MINECRAFT_URL.isEmpty()) {
-            LOGGER.error("Minecraft url is unset!");
+        // Get the MC updates channel(s)
+        for (Long id : Config.CHANNEL_ID_MC_UPDATES) {
+            if ((textChannelOptional = Main.getApi().getTextChannelById(id)).isEmpty()) {
+                LOGGER.warn("One of the Minecraft updates channels ('{}') is invalid.", id);
+            } else {
+                this.mcUpdatesChannels.add(textChannelOptional.get());
+            }
+        }
+
+        if (Config.JIRA_URL.isEmpty()) {
+            LOGGER.error("Jira url is unset!");
             this.setEnabled(false);
             return;
-        } else if (Config.JIRA_URL.isEmpty()) {
-            LOGGER.error("Jira url is unset!");
+        } else if (Config.MINECRAFT_URL.isEmpty()) {
+            LOGGER.error("Minecraft url is unset!");
             this.setEnabled(false);
             return;
         }
@@ -91,21 +91,8 @@ public class VersionCheckModule extends Module {
 
     private void fetchInitialData(int attempt) {
         LOGGER.info("Fetching initial data.");
-        List<MinecraftObjects.Version> mcVersions = new ArrayList<>();
         List<JiraObjects.Version> jiraVersions = new ArrayList<>();
-
-        try {
-            mcVersions.addAll(this.fetchMinecraftVersions());
-        } catch (ExecutionException e) {
-            LOGGER.error(
-                    "Failed to fetch the initial Minecraft versions. Is the server down?", e);
-        } catch (InterruptedException e) {
-            LOGGER.error("Failed to fetch the initial Minecraft versions "
-                    + "because the thread was interrupted", e);
-        } catch (JsonProcessingException e) {
-            LOGGER.error("Failed to parse the received response when fetching "
-                    + "the initial Minecraft versions", e);
-        }
+        List<MinecraftObjects.Version> mcVersions = new ArrayList<>();
 
         try {
             jiraVersions.addAll(this.fetchJiraVersions());
@@ -120,9 +107,22 @@ public class VersionCheckModule extends Module {
                     + "the initial Jira versions", e);
         }
 
-        this.mcVersions.addAll(mcVersions);
+        try {
+            mcVersions.addAll(this.fetchMinecraftVersions());
+        } catch (ExecutionException e) {
+            LOGGER.error(
+                    "Failed to fetch the initial Minecraft versions. Is the server down?", e);
+        } catch (InterruptedException e) {
+            LOGGER.error("Failed to fetch the initial Minecraft versions "
+                    + "because the thread was interrupted", e);
+        } catch (JsonProcessingException e) {
+            LOGGER.error("Failed to parse the received response when fetching "
+                    + "the initial Minecraft versions", e);
+        }
+
         this.jiraVersions.addAll(jiraVersions);
-        if (this.mcVersions.isEmpty() && this.jiraVersions.isEmpty()) {
+        this.mcVersions.addAll(mcVersions);
+        if (this.jiraVersions.isEmpty() && this.mcVersions.isEmpty()) {
             if (attempt >= 5) {
                 LOGGER.error("Too many failed attempts to fetch the initial data. "
                         + "Disabling module");
@@ -134,21 +134,21 @@ public class VersionCheckModule extends Module {
                 THREAD_POOL.schedule(() -> this.fetchInitialData(attempt1), 1, TimeUnit.MINUTES);
             }
             return;
-        } else if (this.mcVersions.isEmpty()) {
-            LOGGER.warn("No initial data for Minecraft, it will be fetched next check");
-
-            LOGGER.info("Jira      | Total versions: {}", this.jiraVersions.size());
-            LOGGER.info("Jira      | Latest version: {}", this.getLatestJiraVersionName());
         } else if (this.jiraVersions.isEmpty()) {
             LOGGER.warn("No initial data for Jira, it will be fetched next check");
 
             LOGGER.info("Minecraft | Total versions: {}", this.mcVersions.size());
             LOGGER.info("Minecraft | Latest version: {}", this.getLatestMcVersionId());
-        } else {
-            LOGGER.info("Minecraft | Total versions: {}", this.mcVersions.size());
-            LOGGER.info("Minecraft | Latest version: {}", this.getLatestMcVersionId());
+        } else if (this.mcVersions.isEmpty()) {
+            LOGGER.warn("No initial data for Minecraft, it will be fetched next check");
+
             LOGGER.info("Jira      | Total versions: {}", this.jiraVersions.size());
             LOGGER.info("Jira      | Latest version: {}", this.getLatestJiraVersionName());
+        } else {
+            LOGGER.info("Jira      | Total versions: {}", this.jiraVersions.size());
+            LOGGER.info("Jira      | Latest version: {}", this.getLatestJiraVersionName());
+            LOGGER.info("Minecraft | Total versions: {}", this.mcVersions.size());
+            LOGGER.info("Minecraft | Latest version: {}", this.getLatestMcVersionId());
         }
 
         LOGGER.debug("Scheduled version check task with {} seconds of delay.", Config.CHECK_DELAY);
@@ -176,20 +176,6 @@ public class VersionCheckModule extends Module {
         }
     }
 
-    protected static String getMcVersionId(Optional<MinecraftObjects.Version> version) {
-        return version.isPresent() ? version.get().id : "N/A";
-    }
-
-    protected Optional<MinecraftObjects.Version> getLatestMcVersion() {
-        return !this.mcVersions.isEmpty()
-                ? Optional.ofNullable(this.mcVersions.get(this.mcVersions.size() - 1))
-                : Optional.empty();
-    }
-
-    protected String getLatestMcVersionId() {
-        return getMcVersionId(this.getLatestMcVersion());
-    }
-
     protected static String getJiraVersionName(Optional<JiraObjects.Version> version) {
         return version.isPresent() ? version.get().name : "N/A";
     }
@@ -204,6 +190,20 @@ public class VersionCheckModule extends Module {
         return getJiraVersionName(this.getLatestJiraVersion());
     }
 
+    protected static String getMcVersionId(Optional<MinecraftObjects.Version> version) {
+        return version.isPresent() ? version.get().id : "N/A";
+    }
+
+    protected Optional<MinecraftObjects.Version> getLatestMcVersion() {
+        return !this.mcVersions.isEmpty()
+                ? Optional.ofNullable(this.mcVersions.get(this.mcVersions.size() - 1))
+                : Optional.empty();
+    }
+
+    protected String getLatestMcVersionId() {
+        return getMcVersionId(this.getLatestMcVersion());
+    }
+
     protected void checkUpdates() {
         if (this.checking) {
             LOGGER.warn("A version check is already running! Skipping version check.");
@@ -214,6 +214,15 @@ public class VersionCheckModule extends Module {
 
 
         try {
+            Optional<JiraObjects.Version> jiraVersion = this.checkJiraUpdates();
+            if (jiraVersion.isPresent() && !this.jiraUpdatesChannels.isEmpty()) {
+                String msg = I18nUtil.formatKey("version_checker.new_jira_version",
+                        jiraVersion.get().name);
+                for (TextChannel chn : this.jiraUpdatesChannels) {
+                    chn.sendMessage(msg);
+                }
+            }
+
             Optional<MinecraftObjects.Version> mcVersion = this.checkMinecraftUpdates();
             if (mcVersion.isPresent() && !this.mcUpdatesChannels.isEmpty()) {
                 MinecraftObjects.Version version = mcVersion.get();
@@ -229,15 +238,6 @@ public class VersionCheckModule extends Module {
                     chn.sendMessage(msg + (url != null ? "\n" + url : ""));
                 }
             }
-
-            Optional<JiraObjects.Version> jiraVersion = this.checkJiraUpdates();
-            if (jiraVersion.isPresent() && !this.jiraUpdatesChannels.isEmpty()) {
-                String msg = I18nUtil.formatKey("version_checker.new_jira_version",
-                        jiraVersion.get().name);
-                for (TextChannel chn : this.jiraUpdatesChannels) {
-                    chn.sendMessage(msg);
-                }
-            }
         } catch (Exception e) {
             LOGGER.error("Found uncaught exception while checking updates", e);
         }
@@ -245,6 +245,27 @@ public class VersionCheckModule extends Module {
         this.checking = false;
 
         // TODO: Handle too many exceptions in a row.
+    }
+
+    private Optional<JiraObjects.Version> checkJiraUpdates() {
+        Optional<JiraObjects.Version> result = Optional.empty();
+
+        try {
+            List<JiraObjects.Version> fetched = this.fetchJiraVersions();
+            if (this.mcVersions.size() < fetched.size()) {
+                List<JiraObjects.Version> list = new ArrayList<>(fetched);
+                list.removeAll(this.jiraVersions);
+                result = list.stream().findAny();
+            }
+        } catch (ExecutionException e) {
+            // TODO
+        } catch (InterruptedException e) {
+            // TODO
+        } catch (JsonProcessingException e) {
+            // TODO
+        }
+
+        return result;
     }
 
     private Optional<MinecraftObjects.Version> checkMinecraftUpdates() {
@@ -269,25 +290,12 @@ public class VersionCheckModule extends Module {
         return result;
     }
 
-    private Optional<JiraObjects.Version> checkJiraUpdates() {
-        Optional<JiraObjects.Version> result = Optional.empty();
-
-        try {
-            List<JiraObjects.Version> fetched = this.fetchJiraVersions();
-            if (this.mcVersions.size() < fetched.size()) {
-                List<JiraObjects.Version> list = new ArrayList<>(fetched);
-                list.removeAll(this.jiraVersions);
-                result = list.stream().findAny();
-            }
-        } catch (ExecutionException e) {
-            // TODO
-        } catch (InterruptedException e) {
-            // TODO
-        } catch (JsonProcessingException e) {
-            // TODO
-        }
-
-        return result;
+    private List<JiraObjects.Version> fetchJiraVersions() throws ExecutionException,
+            InterruptedException, JsonProcessingException {
+        SimpleHttpResponse response = makeRequest(Config.JIRA_URL);
+        JiraObjects.Response jiraResponse = MAPPER.readValue(response.getBodyText(),
+                JiraObjects.Response.class);
+        return jiraResponse.versions;
     }
 
     private List<MinecraftObjects.Version> fetchMinecraftVersions() throws ExecutionException,
@@ -296,14 +304,6 @@ public class VersionCheckModule extends Module {
         MinecraftObjects.Response mcResponse = MAPPER.readValue(response.getBodyText(),
                 MinecraftObjects.Response.class);
         return mcResponse.versions;
-    }
-
-    private List<JiraObjects.Version> fetchJiraVersions() throws ExecutionException,
-            InterruptedException, JsonProcessingException {
-        SimpleHttpResponse response = makeRequest(Config.JIRA_URL);
-        JiraObjects.Response jiraResponse = MAPPER.readValue(response.getBodyText(),
-                JiraObjects.Response.class);
-        return jiraResponse.versions;
     }
 
     private SimpleHttpResponse makeRequest(String requestUrl) throws ExecutionException,
