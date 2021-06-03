@@ -19,8 +19,10 @@ import org.javacord.api.DiscordApi;
 import org.javacord.api.entity.channel.TextChannel;
 
 import javax.annotation.Nullable;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -29,6 +31,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * A module that constantly checks the configured URLs ({@link Config#JIRA_URL}
@@ -279,9 +282,10 @@ public class VersionCheckModule extends Module {
             if (this.jiraVersions.size() < fetched.size()) {
                 List<JiraObjects.Version> list = new ArrayList<>(fetched);
                 list.removeAll(this.jiraVersions);
+                list = list.stream().filter(this::isNewJiraVersion)
+                        .collect(Collectors.toList());
                 result = list.stream().findAny();
-                this.jiraVersions.clear();
-                this.jiraVersions.addAll(fetched);
+                this.jiraVersions.addAll(list);
             }
         } catch (ExecutionException e) {
             LOGGER.error("Failed to check Jira updates. Is the server down?", e);
@@ -297,6 +301,29 @@ public class VersionCheckModule extends Module {
         return result;
     }
 
+    private List<JiraObjects.Version> fetchJiraVersions() throws ExecutionException,
+            InterruptedException, JsonProcessingException {
+        SimpleHttpResponse response = makeRequest(Config.JIRA_URL);
+        JiraObjects.Response jiraResponse = MAPPER.readValue(response.getBodyText(),
+                JiraObjects.Response.class);
+        return jiraResponse.versions;
+    }
+
+    private boolean isNewJiraVersion(JiraObjects.Version version) {
+        if (version != null && version.releaseDate != null) {
+            Date releaseDate = JiraObjects.parseDate(version.releaseDate);
+            Optional<JiraObjects.Version> latestVersion = this.getLatestJiraVersion();
+            Date latestReleaseDate = new Date(System.currentTimeMillis() - 300 * 1000);
+            if (latestVersion.isPresent() && latestVersion.get().releaseDate != null) {
+                latestReleaseDate = JiraObjects.parseDate(latestVersion.get().releaseDate);
+            }
+
+            return releaseDate.after(latestReleaseDate);
+        }
+
+        return false;
+    }
+
     private Optional<MinecraftObjects.Version> checkMinecraftUpdates() {
         LOGGER.debug("Checking for Minecraft updates.");
         Optional<MinecraftObjects.Version> result = Optional.empty();
@@ -306,9 +333,10 @@ public class VersionCheckModule extends Module {
             if (this.mcVersions.size() < fetched.size()) {
                 List<MinecraftObjects.Version> list = new ArrayList<>(fetched);
                 list.removeAll(this.mcVersions);
+                list = list.stream().filter(this::isNewMcVersion)
+                        .collect(Collectors.toList());
                 result = list.stream().findAny();
-                this.mcVersions.clear();
-                this.mcVersions.addAll(fetched);
+                this.mcVersions.addAll(list);
             }
         } catch (ExecutionException e) {
             LOGGER.error("Failed to check Minecraft updates. Is the server down?", e);
@@ -325,20 +353,27 @@ public class VersionCheckModule extends Module {
         return result;
     }
 
-    private List<JiraObjects.Version> fetchJiraVersions() throws ExecutionException,
-            InterruptedException, JsonProcessingException {
-        SimpleHttpResponse response = makeRequest(Config.JIRA_URL);
-        JiraObjects.Response jiraResponse = MAPPER.readValue(response.getBodyText(),
-                JiraObjects.Response.class);
-        return jiraResponse.versions;
-    }
-
     private List<MinecraftObjects.Version> fetchMinecraftVersions() throws ExecutionException,
             InterruptedException, JsonProcessingException {
         SimpleHttpResponse response = makeRequest(Config.MINECRAFT_URL);
         MinecraftObjects.Response mcResponse = MAPPER.readValue(response.getBodyText(),
                 MinecraftObjects.Response.class);
         return mcResponse.versions;
+    }
+
+    private boolean isNewMcVersion(MinecraftObjects.Version version) {
+        if (version != null && version.releaseTime != null) {
+            Date releaseDate = MinecraftObjects.parseDate(version.releaseTime);
+            Optional<MinecraftObjects.Version> latestVersion = this.getLatestMcVersion();
+            Date latestReleaseDate = new Date(System.currentTimeMillis() - 300 * 1000);
+            if (latestVersion.isPresent() && latestVersion.get().releaseTime != null) {
+                latestReleaseDate = MinecraftObjects.parseDate(latestVersion.get().releaseTime);
+            }
+
+            return releaseDate.after(latestReleaseDate);
+        }
+
+        return false;
     }
 
     private SimpleHttpResponse makeRequest(String requestUrl) throws ExecutionException,

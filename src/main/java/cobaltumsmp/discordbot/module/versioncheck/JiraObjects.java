@@ -3,12 +3,29 @@ package cobaltumsmp.discordbot.module.versioncheck;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import javax.annotation.Nullable;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 /**
  * Object representations of JSON data from {@link Config#JIRA_URL}.
  */
 public final class JiraObjects {
+    private static final SimpleDateFormat DATE_PARSER = new SimpleDateFormat("yyyy-MM-dd");
+
+    /**
+     * Parses dates in {@code yyyy-MM-dd} format.
+     */
+    public static Date parseDate(String input) {
+        try {
+            return DATE_PARSER.parse(input);
+        } catch (ParseException e) {
+            return new Date(System.currentTimeMillis() - 300 * 1000); // 5 minutes ago
+        }
+    }
+
     /**
      * The full response of {@link Config#JIRA_URL}.
      */
@@ -67,10 +84,12 @@ public final class JiraObjects {
         public boolean released;
         @JsonIgnore
         public String startDate;
+        @Nullable // null in "Future version ..."
         @JsonProperty
         public String releaseDate;
         @JsonIgnore
         public String userStartDate;
+        @Nullable // null in "Future version ..."
         @JsonProperty
         public String userReleaseDate;
         @JsonProperty
