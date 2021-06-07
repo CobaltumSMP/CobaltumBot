@@ -22,6 +22,8 @@ import org.javacord.api.entity.channel.TextChannel;
 import org.javacord.api.entity.message.MessageBuilder;
 
 import javax.annotation.Nullable;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -338,12 +340,18 @@ public class VersionCheckModule extends Module {
         if (version != null && version.releaseDate != null) {
             Date releaseDate = JiraObjects.parseDate(version.releaseDate);
             Optional<JiraObjects.Version> latestVersion = this.getLatestJiraVersion();
-            Date latestReleaseDate = new Date(System.currentTimeMillis() - 300 * 1000);
+
+            Date latestReleaseDate;
             if (latestVersion.isPresent() && latestVersion.get().releaseDate != null) {
                 latestReleaseDate = JiraObjects.parseDate(latestVersion.get().releaseDate);
+            } else {
+                LocalDate localDate = LocalDate.now();
+                // Date as 23:55 of yesterday
+                latestReleaseDate = new Date(localDate.atStartOfDay().toInstant(OffsetDateTime
+                        .now().getOffset()).toEpochMilli() - 300 * 1000);
             }
 
-            return releaseDate.after(latestReleaseDate);
+            return releaseDate.compareTo(latestReleaseDate) >= 1;
         }
 
         return false;
@@ -400,7 +408,7 @@ public class VersionCheckModule extends Module {
                 latestReleaseDate = MinecraftObjects.parseDate(latestVersion.get().releaseTime);
             }
 
-            return releaseDate.after(latestReleaseDate);
+            return releaseDate.compareTo(latestReleaseDate) >= 1;
         }
 
         return false;
