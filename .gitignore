@@ -1,0 +1,25 @@
+# Ignore Gradle project-specific cache directory
+.gradle/
+
+# Ignore Gradle build output directory
+build/
+
+# Bot stuff
+logs/
+.env
+
+# Intellij IDEA
+.idea
+*.iml
+out/
+
+# Residues from js/ts branch
+*.log
+node_modules/
+built/
+
+# Ignore Gradle project-specific cache directory
+.gradle
+
+# Ignore Gradle build output directory
+build
