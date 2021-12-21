@@ -19,6 +19,16 @@ internal suspend fun main() {
             }
         }
 
+        presence {
+            val prefix = if (ENVIRONMENT == "development") {
+                "???"
+            } else {
+                PREFIX
+            }
+
+            playing("${prefix}help")
+        }
+
         // TODO: Add back i18n
 
         extensions {

@@ -1,13 +1,17 @@
 package cobaltumsmp.discordbot.extensions
 
+import cobaltumsmp.discordbot.ROLE_ID_MOD
+import cobaltumsmp.discordbot.multipleSnowflakes
 import com.google.gson.JsonParseException
+import com.kotlindiscord.kord.extensions.checks.hasPermission
+import com.kotlindiscord.kord.extensions.checks.hasRole
 import com.kotlindiscord.kord.extensions.extensions.Extension
 import com.kotlindiscord.kord.extensions.extensions.chatCommand
 import com.kotlindiscord.kord.extensions.extensions.event
 import com.kotlindiscord.kord.extensions.utils.envOrNull
 import com.kotlindiscord.kord.extensions.utils.respond
 import com.kotlindiscord.kord.extensions.utils.scheduling.Scheduler
-import dev.kord.common.entity.Snowflake
+import dev.kord.common.entity.Permission
 import dev.kord.core.entity.channel.TextChannel
 import dev.kord.core.event.gateway.ReadyEvent
 import io.ktor.client.HttpClient
@@ -21,16 +25,15 @@ import kotlinx.serialization.json.Json
 import mu.KotlinLogging
 import org.quiltmc.launchermeta.version_manifest.VersionEntry
 import org.quiltmc.launchermeta.version_manifest.VersionManifest
-import java.util.*
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 
 private const val MAX_INITIAL_DATA_ATTEMPTS = 3
 private const val DEFAULT_CHECK_DELAY = 30
 
-private val CHECK_DELAY = envOrNull("VC_CHECK_DELAY") ?.toInt() ?: DEFAULT_CHECK_DELAY
-private val JIRA_UPDATE_CHANNELS = envOrNull("CHANNEL_ID_VC_JIRA") ?.let { v -> v.split(",")
-        .map { Snowflake(it.trim()) } }
-private val MC_UPDATES_CHANNELS = envOrNull("CHANNEL_ID_VC_MC") ?.let { v -> v.split(",").map { Snowflake(it.trim()) } }
+private val CHECK_DELAY = envOrNull("VC_CHECK_DELAY")?.toInt() ?: DEFAULT_CHECK_DELAY
+private val JIRA_UPDATE_CHANNELS = multipleSnowflakes("CHANNEL_ID_VC_JIRA")
+private val MC_UPDATES_CHANNELS = multipleSnowflakes("CHANNEL_ID_VC_MC")
 private val JIRA_URL = envOrNull("VC_JIRA_URL")
 private val MINECRAFT_URL = envOrNull("VC_MINECRAFT_URL")
 
@@ -54,15 +57,15 @@ internal class VersionCheckExtension : Extension() {
 
     @Suppress("TooGenericExceptionCaught")
     override suspend fun setup() {
-        JIRA_UPDATE_CHANNELS ?.forEach {
+        JIRA_UPDATE_CHANNELS.forEach {
             val channel = kord.getChannelOf<TextChannel>(it)
-            channel ?.let(jiraUpdateChannels::add)
-                    ?: LOGGER.warn { "One of the Jira update channels is invalid ($it)" }
+            channel?.let(jiraUpdateChannels::add)
+                ?: LOGGER.warn { "One of the Jira update channels is invalid ($it)" }
         }
-        MC_UPDATES_CHANNELS ?.forEach {
+        MC_UPDATES_CHANNELS.forEach {
             val channel = kord.getChannelOf<TextChannel>(it)
-            channel ?.let(mcUpdateChannels::add)
-                    ?: LOGGER.warn { "One of the Minecraft update channels is invalid ($it)" }
+            channel?.let(mcUpdateChannels::add)
+                ?: LOGGER.warn { "One of the Minecraft update channels is invalid ($it)" }
         }
 
         JIRA_URL ?: run {
@@ -89,7 +92,7 @@ internal class VersionCheckExtension : Extension() {
             name = "versioncheck"
             description = "Execute a version check"
 
-            // TODO: Checks
+            check { ROLE_ID_MOD?.let { hasRole(ROLE_ID_MOD) } ?: hasPermission(Permission.Administrator) }
 
             action {
                 LOGGER.debug {
@@ -103,11 +106,13 @@ internal class VersionCheckExtension : Extension() {
                     if (!checked) {
                         message.respond("A version check was already running")
                     } else {
-                        message.respond("Version check task ran successfully.\n" +
-                                "Latest Minecraft version: ${getLatestMinecraftVersion().id}\n" +
-                                "Total Minecraft versions: ${mcVersions.size}\n" +
-                                "Latest Jira version: ${getLatestJiraVersion().name}\n" +
-                                "Total Jira versions: ${jiraVersions.size}")
+                        message.respond(
+                            "Version check task ran successfully.\n" +
+                                    "Minecraft | Latest version: ${getLatestMinecraftVersion().id}\n" +
+                                    "Minecraft | Total versions: ${mcVersions.size}\n" +
+                                    "Jira      | Latest version: ${getLatestJiraVersion().name}\n" +
+                                    "Jira      | Total versions: ${jiraVersions.size}"
+                        )
                     }
                 } catch (e: Exception) {
                     LOGGER.error(e) { "There was an error in a manually run version check" }
@@ -190,7 +195,7 @@ internal class VersionCheckExtension : Extension() {
             if (newJiraVersion != null) {
                 jiraUpdateChannels.forEach {
                     it.createMessage(
-                            "A new version has been added to the Minecraft issue tracker: ${newJiraVersion.name}"
+                        "A new version has been added to the Minecraft issue tracker: ${newJiraVersion.name}"
                     )
                 }
             }
@@ -215,6 +220,11 @@ internal class VersionCheckExtension : Extension() {
         LOGGER.debug { "Checking for Jira updates" }
 
         val newJiraVersions = getJiraVersions()
+        if (jiraVersions.isEmpty()) {
+            jiraVersions = newJiraVersions
+            return null
+        }
+
         val new = newJiraVersions.find {
             it !in jiraVersions && "future version" !in it.name.lowercase(Locale.getDefault())
         }
@@ -236,6 +246,11 @@ internal class VersionCheckExtension : Extension() {
         LOGGER.debug { "Checking for Minecraft updates" }
 
         val newMcVersions = getMinecraftVersions()
+        if (mcVersions.isEmpty()) {
+            mcVersions = newMcVersions
+            return null
+        }
+
         val new = newMcVersions.find { it !in mcVersions }
 
         if (new != null) {
