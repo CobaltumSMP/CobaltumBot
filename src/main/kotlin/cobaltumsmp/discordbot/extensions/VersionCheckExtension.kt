@@ -177,6 +177,7 @@ internal class VersionCheckExtension : Extension() {
     private fun schedule() {
         scheduler.schedule(CHECK_DELAY.toLong(), name = "Scheduled update check") {
             checkUpdates()
+            schedule()
         }
     }
 
