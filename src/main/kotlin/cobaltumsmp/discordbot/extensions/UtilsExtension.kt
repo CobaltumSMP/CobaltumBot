@@ -2,7 +2,6 @@ package cobaltumsmp.discordbot.extensions
 
 import cobaltumsmp.discordbot.ADMINISTRATOR_ROLES
 import cobaltumsmp.discordbot.CHANNEL_ID_BROADCAST
-import cobaltumsmp.discordbot.GUILD_MAIN
 import cobaltumsmp.discordbot.MODERATOR_ROLES
 import cobaltumsmp.discordbot.OWNER_ROLES
 import cobaltumsmp.discordbot.ROLE_ID_ADMIN
@@ -11,6 +10,7 @@ import cobaltumsmp.discordbot.ROLE_ID_OWNER
 import cobaltumsmp.discordbot.inMainGuild
 import cobaltumsmp.discordbot.isAdministrator
 import cobaltumsmp.discordbot.isModerator
+import cobaltumsmp.discordbot.mainGuild
 import com.kotlindiscord.kord.extensions.commands.Arguments
 import com.kotlindiscord.kord.extensions.commands.converters.impl.coalescedString
 import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalChannel
@@ -37,12 +37,11 @@ internal class UtilsExtension : Extension() {
     private val broadcastChannels = mutableMapOf<Snowflake, TextChannel>()
 
     override suspend fun setup() {
-        if (kord.getGuild(GUILD_MAIN) == null) {
+        val guild = mainGuild(kord)
+        if (guild == null) {
             LOGGER.error("Could not find main guild")
             return
         }
-
-        val guild = kord.getGuild(GUILD_MAIN)!!
 
         // Check roles
         if (ROLE_ID_MOD == null || guild.getRoleOrNull(ROLE_ID_MOD) == null) {
