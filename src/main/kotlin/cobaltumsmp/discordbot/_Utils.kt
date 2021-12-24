@@ -1,15 +1,23 @@
 package cobaltumsmp.discordbot
 
 import com.kotlindiscord.kord.extensions.utils.envOrNull
+import dev.kord.common.entity.OverwriteType
 import dev.kord.common.entity.Permission
 import dev.kord.common.entity.Snowflake
 import dev.kord.core.Kord
 import dev.kord.core.entity.Guild
+import dev.kord.rest.builder.channel.PermissionOverwriteBuilder
 
 internal fun multipleSnowflakes(key: String): List<Snowflake> =
     envOrNull(key)?.let { v -> v.split(",").map { Snowflake(it.trim()) } } ?: emptyList()
 
 internal suspend fun mainGuild(kord: Kord): Guild? = kord.getGuild(GUILD_MAIN)
+
+internal fun memberOverwrite(memberId: Snowflake, builder: PermissionOverwriteBuilder.() -> Unit) =
+    PermissionOverwriteBuilder(OverwriteType.Member, memberId).apply(builder).toOverwrite()
+
+internal fun roleOverwrite(roleId: Snowflake, builder: PermissionOverwriteBuilder.() -> Unit) =
+    PermissionOverwriteBuilder(OverwriteType.Role, roleId).apply(builder).toOverwrite()
 
 internal fun permissionToString(permission: Permission): String = when (permission) {
     Permission.CreateInstantInvite -> "Create Instant Invite"
