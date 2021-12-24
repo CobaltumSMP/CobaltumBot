@@ -82,7 +82,7 @@ internal class UtilsExtension : Extension() {
                 val guildChannel = channel as GuildChannel
 
                 if (!guildChannel.botHasPermissions(Permission.SendMessages)) {
-                    message.respond("I don't have permission to send messages in that channel")
+                    message.respond("The bot does not have permission to send messages in that channel")
                     return@action
                 } else if (!guildChannel.permissionsForMember(user!!).contains(Permission.SendMessages)) {
                     message.respond("You don't have permission to send messages in that channel")

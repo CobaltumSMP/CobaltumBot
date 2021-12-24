@@ -43,6 +43,13 @@ dependencies {
     implementation(libs.ktor.core)
 
     implementation(libs.launchermeta.parser)
+
+    // Database management dependencies
+    implementation(libs.exposed.core)
+    implementation(libs.exposed.dao)
+    implementation(libs.exposed.jdbc)
+
+    implementation(libs.postgresql)
 }
 
 application {

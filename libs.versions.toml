@@ -8,6 +8,8 @@ logging = "2.0.11"
 logback = "1.2.5"
 ktor = "1.6.3"
 launchermeta-parser = "1.0.0"
+exposed = "0.36.2"
+postgresql = "42.3.1"
 
 [libraries]
 detekt = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
@@ -19,3 +21,7 @@ logging = { module = "io.github.microutils:kotlin-logging", version.ref = "loggi
 ktor-http = { module = "io.ktor:ktor-http", version.ref = "ktor" }
 ktor-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 launchermeta-parser = { module = "org.quiltmc:launchermeta-parser", version.ref = "launchermeta-parser" }
+exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
+exposed-dao = { module = "org.jetbrains.exposed:exposed-dao", version.ref = "exposed" }
+exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }

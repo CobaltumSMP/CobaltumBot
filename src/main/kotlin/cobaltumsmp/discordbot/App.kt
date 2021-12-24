@@ -2,6 +2,7 @@ package cobaltumsmp.discordbot
 
 import cobaltumsmp.discordbot.extensions.UtilsExtension
 import cobaltumsmp.discordbot.extensions.VersionCheckExtension
+import cobaltumsmp.discordbot.extensions.ticketsystem.TicketSystemExtension
 import com.kotlindiscord.kord.extensions.ExtensibleBot
 
 internal suspend fun main() {
@@ -34,6 +35,8 @@ internal suspend fun main() {
         extensions {
             add(::UtilsExtension)
             add(::VersionCheckExtension)
+
+            add(::TicketSystemExtension)
         }
     }
     bot.start()
