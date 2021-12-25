@@ -516,8 +516,6 @@ class TicketSystemExtension : Extension() {
                 embed {
                     description = """
                         Press the button below to open a new ticket
-
-                        If the button doesn't do anything first time, try again in a few seconds
                     """.trimIndent()
                 }
             }
@@ -567,14 +565,12 @@ class TicketSystemExtension : Extension() {
                 label = "Open Ticket"
                 this.id = "$id/CreateTicket"
 
-                body = {
-                    action {
-                        val user = user.asUser()
-                        LOGGER.debug {
-                            "Opening ticket in config $id for user ${user.username}#${user.discriminator} (${user.id})"
-                        }
-                        createTicket(user, id, this)
+                action {
+                    val user = user.asUser()
+                    LOGGER.debug {
+                        "Opening ticket in config $id for user ${user.username}#${user.discriminator} (${user.id})"
                     }
+                    createTicket(user, id, this)
                 }
             }
         }
