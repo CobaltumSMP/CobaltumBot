@@ -18,6 +18,8 @@ import com.kotlindiscord.kord.extensions.components.publicButton
 import com.kotlindiscord.kord.extensions.components.types.emoji
 import com.kotlindiscord.kord.extensions.extensions.Extension
 import com.kotlindiscord.kord.extensions.extensions.chatCommand
+import com.kotlindiscord.kord.extensions.types.PublicInteractionContext
+import com.kotlindiscord.kord.extensions.types.respondEphemeral
 import com.kotlindiscord.kord.extensions.utils.env
 import com.kotlindiscord.kord.extensions.utils.envOrNull
 import com.kotlindiscord.kord.extensions.utils.respond
@@ -470,9 +472,11 @@ class TicketSystemExtension : Extension() {
 
     private suspend fun setupInteractions() {
         val guild = mainGuild(kord)!!
-        val configs: MutableList<ResultRow> = mutableListOf()
+        val configs = mutableListOf<ResultRow>()
+        val openTickets = mutableListOf<ResultRow>()
         transaction {
             configs.addAll(TicketConfigs.selectAll())
+            openTickets.addAll(Tickets.select { Tickets.closed eq false })
         }
 
         configs.forEach {
@@ -481,6 +485,14 @@ class TicketSystemExtension : Extension() {
 
             message.edit {
                 setupTicketConfigButtons(it[TicketConfigs.id].value)
+            }
+        }
+        openTickets.forEach {
+            val channel = guild.getChannel(Snowflake(it[Tickets.channelId])) as TextChannel
+            val message = channel.getMessageOrNull(Snowflake(it[Tickets.botMsgId]!!))!!
+
+            message.edit {
+                setupTicketButtons(it[Tickets.globalTicketId])
             }
         }
     }
@@ -561,7 +573,7 @@ class TicketSystemExtension : Extension() {
                         LOGGER.debug {
                             "Opening ticket in config $id for user ${user.username}#${user.discriminator} (${user.id})"
                         }
-                        createTicket(user, id)
+                        createTicket(user, id, this)
                     }
                 }
             }
@@ -623,7 +635,7 @@ class TicketSystemExtension : Extension() {
         }
     }
 
-    private suspend fun createTicket(owner: User, configId: Int) {
+    private suspend fun createTicket(owner: User, configId: Int, context: PublicInteractionContext) {
         var config: ResultRow? = null
         val userOpenTickets: MutableList<ResultRow> = mutableListOf()
         var lastTicketCreateTime: Long = -1L
@@ -643,19 +655,23 @@ class TicketSystemExtension : Extension() {
                 "User ${owner.username}#${owner.discriminator} ($userId) " +
                         "has too many open tickets (${userOpenTickets.size})"
             }
-            throw DiscordRelayedException("You can only have $MAX_OPEN_TICKETS_PER_USER open tickets at a time")
+            context.respondEphemeral {
+                content = "You can only have $MAX_OPEN_TICKETS_PER_USER open tickets at a time"
+            }
+            return
         }
 
         val time = System.currentTimeMillis()
         if (lastTicketCreateTime != -1L && time - lastTicketCreateTime <= MIN_TICKET_CREATE_DELAY) {
             LOGGER.debug {
                 "User ${owner.username}#${owner.discriminator} ($userId) " +
-                        "has created a ticket in the last 5 minutes"
+                        "has created a ticket in the last $MIN_TICKET_CREATE_DELAY_MINUTES minutes"
             }
-            throw DiscordRelayedException(
-                "You have opened a ticket in the last 5 minutes. " +
-                        "Please wait 5 minutes before opening another ticket."
-            )
+            context.respondEphemeral {
+                content = "You have opened a ticket in the last $MIN_TICKET_CREATE_DELAY_MINUTES minutes. " +
+                        "Please wait before opening another ticket."
+            }
+            return
         }
 
         val id = config!![TicketConfigs.ticketCount]
@@ -701,24 +717,35 @@ class TicketSystemExtension : Extension() {
             }
         }
         botMsg.edit {
-            components {
-                publicButton {
-                    emoji(EMOTE_LOCK)
-                    label = "Close Ticket"
-                    this.id = "$globalTicketId/CloseTicket"
-
-                    action {
-                        // TODO
-                        throw DiscordRelayedException("Not implemented yet")
-                    }
-                }
-            }
+            setupTicketButtons(globalTicketId)
         }
         val msgId = botMsg.id.value.toLong()
 
         transaction {
             Tickets.update({ Tickets.ownerId eq userId and (Tickets.globalTicketId eq globalTicketId) }) {
                 it[botMsgId] = msgId
+            }
+        }
+
+        context.respondEphemeral {
+            content = "Your ticket has been created in ${channel.mention}"
+        }
+    }
+
+    private suspend fun MessageModifyBuilder.setupTicketButtons(globalTicketId: Int) {
+        LOGGER.debug { "Setting up ticket buttons for #$globalTicketId" }
+        components {
+            publicButton {
+                emoji(EMOTE_LOCK)
+                label = "Close Ticket"
+                this.id = "$globalTicketId/CloseTicket"
+
+                action {
+                    // TODO
+                    respondEphemeral {
+                        content = "This feature is not yet implemented"
+                    }
+                }
             }
         }
     }
