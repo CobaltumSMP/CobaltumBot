@@ -16,6 +16,8 @@ import com.kotlindiscord.kord.extensions.DiscordRelayedException
 import com.kotlindiscord.kord.extensions.commands.Arguments
 import com.kotlindiscord.kord.extensions.commands.converters.impl.channel
 import com.kotlindiscord.kord.extensions.commands.converters.impl.int
+import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalBoolean
+import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalInt
 import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalMessage
 import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalString
 import com.kotlindiscord.kord.extensions.commands.converters.impl.roleList
@@ -46,6 +48,7 @@ import dev.kord.rest.builder.message.create.embed
 import dev.kord.rest.builder.message.modify.MessageModifyBuilder
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.Query
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.and
@@ -79,6 +82,8 @@ private val CLOSED_TICKET_CATEGORY_ROLE_ALLOWED_PERMISSIONS = Permissions(
 private val TICKET_CATEGORY_EVERYONE_DENIED_PERMISSIONS = Permissions(Permission.ViewChannel)
 private val CLOSED_TICKET_CATEGORY_EVERYONE_DENIED_PERMISSIONS =
     Permissions(Permission.ViewChannel, Permission.SendMessages)
+private val TICKET_PER_USER_ALLOWED_PERMISSIONS =
+    Permissions(Permission.ViewChannel) // Only this permission is denied for @everyone
 
 private val DB_URL = env("DB_URL")
 private val DB_USER = env("DB_USER")
@@ -156,7 +161,7 @@ internal class TicketSystemExtension : Extension() {
                     tickets = TicketConfigs.select { TicketConfigs.id eq arguments.configId }.count().toInt()
                 }
 
-                val displayName = if (configName.isNotBlank()) "'$configName'" else "ID ${arguments.configId}"
+                val displayName = getTicketConfigDisplayName(configName, arguments.configId)
                 val response = msg.respond {
                     content = """
                         This will delete the ticket config $displayName and $tickets ticket(s).
@@ -184,7 +189,7 @@ internal class TicketSystemExtension : Extension() {
 
         chatCommand {
             name = "listticketconfigs"
-            description = "Lists all ticket configs"
+            description = "List all ticket configs"
 
             check { inMainGuild() }
             check { isModerator() }
@@ -217,7 +222,7 @@ internal class TicketSystemExtension : Extension() {
 
         chatCommand(::GenericTicketConfigArguments) {
             name = "fixticketconfig"
-            description = "Fixes permissions for a ticket config"
+            description = "Fix permissions for a ticket config"
 
             check { inMainGuild() }
             check { isModerator() }
@@ -234,10 +239,101 @@ internal class TicketSystemExtension : Extension() {
                 val closedCategory = guild.getChannel(Snowflake(closedCategoryId)) as Category
 
                 setupTicketCategoriesPermissions(category, closedCategory, roles.map { Snowflake(it) })
+                val displayName = getTicketConfigDisplayName(config[TicketConfigs.name], arguments.configId)
+                message.respond {
+                    content = "Permissions for ticket config $displayName have been fixed"
+                }
             }
         }
 
-        // TODO: Fix ticket permissions command
+        chatCommand(::FixTicketArguments) {
+            name = "fixticket"
+            description = "Fix permissions for a ticket"
+
+            check { inMainGuild() }
+            check { isModerator() }
+
+            action {
+                val ticketId = arguments.ticketId
+                val ticketChannel: TextChannel
+                val allowedUsers: List<Snowflake>
+
+                // Get the ticket info
+                var ticketChannelId: Snowflake = Snowflake.min
+                val allowedUsersList = mutableListOf<String>()
+                if (ticketId != null) {
+                    // Get info using the ticket ID
+                    var query: Query? = null
+                    transaction {
+                        if (arguments.isGlobalId != null) {
+                            query = if (arguments.isGlobalId == true) {
+                                Tickets.select { Tickets.globalTicketId eq ticketId }
+                            } else if (arguments.configId != null) {
+                                Tickets.select {
+                                    Tickets.ticketConfigId eq arguments.configId and (Tickets.ticketId eq ticketId)
+                                }
+                            } else if (ticketConfigIds.size == 1) {
+                                // Ticket ids are unique when there is only one config
+                                Tickets.select { Tickets.ticketId eq ticketId }
+                            } else {
+                                throw DiscordRelayedException(
+                                    "You must specify a ticket config id or " +
+                                            "a global ticket id if there are multiple ticket configs"
+                                )
+                            }
+                        } else {
+                            query = if (ticketConfigIds.size == 1) {
+                                // Ticket ids are unique when there is only one config
+                                Tickets.select { Tickets.ticketId eq ticketId }
+                            } else {
+                                throw DiscordRelayedException(
+                                    "You must specify a ticket config id or " +
+                                            "a global ticket id if there are multiple ticket configs"
+                                )
+                            }
+                        }
+                    }
+
+                    // Should be only one result
+                    query!!.forEach {
+                        ticketChannelId = Snowflake(it[Tickets.channelId])
+                        allowedUsersList.add(it[Tickets.ownerId].toString())
+                        allowedUsersList.addAll(it[Tickets.extraUsers].split(","))
+                    }
+                } else {
+                    // Get info from ticket corresponding to channel
+                    val channelId = channel.id.value.toLong()
+                    transaction {
+                        Tickets.select { Tickets.channelId eq channelId }.firstOrNull()?.let {
+                            ticketChannelId = Snowflake(it[Tickets.channelId])
+                            allowedUsersList.add(it[Tickets.ownerId].toString())
+                            allowedUsersList.addAll(it[Tickets.extraUsers].split(","))
+                        }
+                            ?: throw DiscordRelayedException(
+                                "You must run this command in a ticket channel or specify a ticket id"
+                            )
+                    }
+                }
+
+                ticketChannel = mainGuild(event.kord)!!.getChannel(ticketChannelId) as TextChannel
+                allowedUsers = allowedUsersList.map { Snowflake(it) }
+
+                ticketChannel.edit {
+                    val overwrites = permissionOverwrites ?: mutableSetOf()
+                    for (user in allowedUsers) {
+                        overwrites.add(memberOverwrite(user) {
+                            allowed = TICKET_PER_USER_ALLOWED_PERMISSIONS
+                        })
+                    }
+                    permissionOverwrites = overwrites
+                }
+
+                message.respond {
+                    content = "Permissions for ticket channel ${ticketChannel.mention} have been fixed"
+                }
+            }
+        }
+
         // TODO: Add user to ticket command
     }
 
@@ -480,7 +576,7 @@ internal class TicketSystemExtension : Extension() {
         channel.edit {
             val overwrites = permissionOverwrites ?: mutableSetOf()
             overwrites.add(memberOverwrite(owner.id) {
-                allowed = Permissions(Permission.ViewChannel) // Only this permission is denied for @everyone
+                allowed = TICKET_PER_USER_ALLOWED_PERMISSIONS
             })
             permissionOverwrites = overwrites
         }
@@ -519,6 +615,9 @@ internal class TicketSystemExtension : Extension() {
             }
         }
     }
+
+    private fun getTicketConfigDisplayName(configName: String, configId: Int) =
+        if (configName.isNotBlank()) "'$configName'" else "ID $configId"
 
     inner class SetupTicketsArguments : Arguments() {
         val ticketCategory by channel(
@@ -585,6 +684,33 @@ internal class TicketSystemExtension : Extension() {
     inner class GenericTicketConfigArguments : Arguments() {
         val configId by int("configId", "The id of the ticket config to delete") { _, value ->
             if (!ticketConfigIds.contains(value)) {
+                throw DiscordRelayedException("A config with this id does not exist")
+            }
+        }
+    }
+
+    inner class FixTicketArguments : Arguments() {
+        val ticketId by optionalInt(
+            "ticketId", "The id of the ticket to delete. " +
+                    "Can be inferred from the current channel. " +
+                    "Must be the global id if there is more than one ticket config and it wasn't specified"
+        )
+        val isGlobalId by optionalBoolean("isGlobalId", "Whether the ticket id is a global id")
+        val configId by optionalInt("configId", "The id of the ticket config to delete the ticket from") { _, value ->
+            if (value != null && !ticketConfigIds.contains(value)) {
+                throw DiscordRelayedException("A config with this id does not exist")
+            }
+        }
+    }
+
+    inner class GenericTicketArguments : Arguments() {
+        val ticketId by int(
+            "ticketId", "The id of the ticket to delete." +
+                    "Must be the global id if there is more than one ticket config and it wasn't specified"
+        )
+        val isGlobalId by optionalBoolean("isGlobalId", "Whether the ticket id is a global id")
+        val configId by optionalInt("configId", "The id of the ticket config to delete the ticket from") { _, value ->
+            if (value != null && !ticketConfigIds.contains(value)) {
                 throw DiscordRelayedException("A config with this id does not exist")
             }
         }
