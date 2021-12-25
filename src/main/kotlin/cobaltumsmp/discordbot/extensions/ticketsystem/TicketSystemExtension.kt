@@ -19,6 +19,7 @@ import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalMessag
 import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalString
 import com.kotlindiscord.kord.extensions.commands.converters.impl.roleList
 import com.kotlindiscord.kord.extensions.components.components
+import com.kotlindiscord.kord.extensions.components.ephemeralButton
 import com.kotlindiscord.kord.extensions.components.publicButton
 import com.kotlindiscord.kord.extensions.components.types.emoji
 import com.kotlindiscord.kord.extensions.extensions.Extension
@@ -26,6 +27,7 @@ import com.kotlindiscord.kord.extensions.extensions.chatCommand
 import com.kotlindiscord.kord.extensions.utils.env
 import com.kotlindiscord.kord.extensions.utils.envOrNull
 import com.kotlindiscord.kord.extensions.utils.respond
+import dev.kord.common.entity.ButtonStyle
 import dev.kord.common.entity.ChannelType
 import dev.kord.common.entity.Permission
 import dev.kord.common.entity.Permissions
@@ -61,6 +63,7 @@ internal const val MAX_OPEN_TICKETS_PER_USER = 3
 
 private val EMOTE_TICKET = ReactionEmoji.Unicode("🎫") // :ticket:
 private val EMOTE_LOCK = ReactionEmoji.Unicode("🔒") // :lock:
+private val EMOTE_WARNING = ReactionEmoji.Unicode("⚠") // :warning:
 
 private val DB_URL = env("DB_URL")
 private val DB_USER = env("DB_USER")
@@ -129,7 +132,38 @@ internal class TicketSystemExtension : Extension() {
             check { isAdministrator() }
 
             action {
-                deleteConfig(arguments.configId, message)
+                val msg = message
+                var configName = ""
+                var tickets = 0
+                transaction {
+                    configName =
+                        TicketConfigs.select { TicketConfigs.id eq arguments.configId }.first()[TicketConfigs.name]
+                    tickets = TicketConfigs.select { TicketConfigs.id eq arguments.configId }.count().toInt()
+                }
+
+                val displayName = if (configName.isNotBlank()) "'$configName'" else "ID ${arguments.configId}"
+                val response = msg.respond {
+                    content = """
+                        This will delete the ticket config $displayName and $tickets ticket(s).
+                        Are you sure you want to do this? Press the button below to confirm.
+                    """.trimIndent()
+                }
+
+                // For some reason adding the button directly in the message creation gives an Invalid Permissions error
+                response.edit {
+                    components {
+                        ephemeralButton {
+                            emoji(EMOTE_WARNING)
+
+                            label = "Delete Ticket Config $displayName"
+                            style = ButtonStyle.Danger
+
+                            action {
+                                deleteConfig(arguments.configId, msg)
+                            }
+                        }
+                    }
+                }
             }
         }
 
