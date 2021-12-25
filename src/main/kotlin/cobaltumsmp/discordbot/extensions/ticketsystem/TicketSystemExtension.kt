@@ -4,8 +4,6 @@
 
 package cobaltumsmp.discordbot.extensions.ticketsystem
 
-import cobaltumsmp.discordbot.GUILD_MAIN
-import cobaltumsmp.discordbot.checkHasPermissionsInChannel
 import cobaltumsmp.discordbot.inMainGuild
 import cobaltumsmp.discordbot.isAdministrator
 import cobaltumsmp.discordbot.isModerator
@@ -13,14 +11,7 @@ import cobaltumsmp.discordbot.mainGuild
 import cobaltumsmp.discordbot.memberOverwrite
 import com.kotlindiscord.kord.extensions.DISCORD_GREEN
 import com.kotlindiscord.kord.extensions.DiscordRelayedException
-import com.kotlindiscord.kord.extensions.commands.Arguments
-import com.kotlindiscord.kord.extensions.commands.converters.impl.channel
-import com.kotlindiscord.kord.extensions.commands.converters.impl.int
-import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalBoolean
-import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalInt
-import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalMessage
-import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalString
-import com.kotlindiscord.kord.extensions.commands.converters.impl.roleList
+import com.kotlindiscord.kord.extensions.commands.chat.ChatCommandContext
 import com.kotlindiscord.kord.extensions.components.components
 import com.kotlindiscord.kord.extensions.components.ephemeralButton
 import com.kotlindiscord.kord.extensions.components.publicButton
@@ -31,7 +22,6 @@ import com.kotlindiscord.kord.extensions.utils.env
 import com.kotlindiscord.kord.extensions.utils.envOrNull
 import com.kotlindiscord.kord.extensions.utils.respond
 import dev.kord.common.entity.ButtonStyle
-import dev.kord.common.entity.ChannelType
 import dev.kord.common.entity.Permission
 import dev.kord.common.entity.Permissions
 import dev.kord.common.entity.Snowflake
@@ -44,6 +34,7 @@ import dev.kord.core.entity.ReactionEmoji
 import dev.kord.core.entity.User
 import dev.kord.core.entity.channel.Category
 import dev.kord.core.entity.channel.TextChannel
+import dev.kord.rest.builder.message.AllowedMentionsBuilder
 import dev.kord.rest.builder.message.create.embed
 import dev.kord.rest.builder.message.modify.MessageModifyBuilder
 import mu.KotlinLogging
@@ -64,6 +55,7 @@ internal const val MAX_TICKET_CONFIG_ROLES = TICKET_CONFIG_ROLES_LENGTH / 20
 internal const val MIN_TICKET_CREATE_DELAY_MINUTES = 30
 internal const val MIN_TICKET_CREATE_DELAY = MIN_TICKET_CREATE_DELAY_MINUTES * 60 * 1000L
 internal const val MAX_OPEN_TICKETS_PER_USER = 3
+internal const val MAX_EXTRA_USERS_PER_TICKET = TICKET_EXTRA_USERS_LENGTH / 20
 
 private val EMOTE_TICKET = ReactionEmoji.Unicode("🎫") // :ticket:
 private val EMOTE_LOCK = ReactionEmoji.Unicode("🔒") // :lock:
@@ -92,7 +84,7 @@ private val JDBC_DRIVER = envOrNull("JDBC_DRIVER")
 
 private val LOGGER = KotlinLogging.logger("cobaltumsmp.discordbot.extensions.ticketsystem")
 
-internal class TicketSystemExtension : Extension() {
+class TicketSystemExtension : Extension() {
     override val name: String = "Ticket System"
 
     val ticketConfigIds: MutableList<Int> = mutableListOf()
@@ -144,7 +136,7 @@ internal class TicketSystemExtension : Extension() {
             }
         }
 
-        chatCommand(::GenericTicketConfigArguments) {
+        chatCommand({ GenericTicketConfigArguments(this) }) {
             name = "deleteticketconfig"
             description = "Deletes a ticket config"
 
@@ -220,7 +212,7 @@ internal class TicketSystemExtension : Extension() {
             }
         }
 
-        chatCommand(::GenericTicketConfigArguments) {
+        chatCommand({ GenericTicketConfigArguments(this) }) {
             name = "fixticketconfig"
             description = "Fix permissions for a ticket config"
 
@@ -246,7 +238,7 @@ internal class TicketSystemExtension : Extension() {
             }
         }
 
-        chatCommand(::FixTicketArguments) {
+        chatCommand({ FixTicketArguments(this) }) {
             name = "fixticket"
             description = "Fix permissions for a ticket"
 
@@ -254,66 +246,17 @@ internal class TicketSystemExtension : Extension() {
             check { isModerator() }
 
             action {
-                val ticketId = arguments.ticketId
                 val ticketChannel: TextChannel
                 val allowedUsers: List<Snowflake>
 
-                // Get the ticket info
-                var ticketChannelId: Snowflake = Snowflake.min
-                val allowedUsersList = mutableListOf<String>()
-                if (ticketId != null) {
-                    // Get info using the ticket ID
-                    var query: Query? = null
-                    transaction {
-                        if (arguments.isGlobalId != null) {
-                            query = if (arguments.isGlobalId == true) {
-                                Tickets.select { Tickets.globalTicketId eq ticketId }
-                            } else if (arguments.configId != null) {
-                                Tickets.select {
-                                    Tickets.ticketConfigId eq arguments.configId and (Tickets.ticketId eq ticketId)
-                                }
-                            } else if (ticketConfigIds.size == 1) {
-                                // Ticket ids are unique when there is only one config
-                                Tickets.select { Tickets.ticketId eq ticketId }
-                            } else {
-                                throw DiscordRelayedException(
-                                    "You must specify a ticket config id or " +
-                                            "a global ticket id if there are multiple ticket configs"
-                                )
-                            }
-                        } else {
-                            query = if (ticketConfigIds.size == 1) {
-                                // Ticket ids are unique when there is only one config
-                                Tickets.select { Tickets.ticketId eq ticketId }
-                            } else {
-                                throw DiscordRelayedException(
-                                    "You must specify a ticket config id or " +
-                                            "a global ticket id if there are multiple ticket configs"
-                                )
-                            }
-                        }
-                    }
+                // Get the ticket
+                val ticket = getTicket(arguments.ticketId, arguments.isGlobalId, arguments.configId)
 
-                    // Should be only one result
-                    query!!.forEach {
-                        ticketChannelId = Snowflake(it[Tickets.channelId])
-                        allowedUsersList.add(it[Tickets.ownerId].toString())
-                        allowedUsersList.addAll(it[Tickets.extraUsers].split(","))
-                    }
-                } else {
-                    // Get info from ticket corresponding to channel
-                    val channelId = channel.id.value.toLong()
-                    transaction {
-                        Tickets.select { Tickets.channelId eq channelId }.firstOrNull()?.let {
-                            ticketChannelId = Snowflake(it[Tickets.channelId])
-                            allowedUsersList.add(it[Tickets.ownerId].toString())
-                            allowedUsersList.addAll(it[Tickets.extraUsers].split(","))
-                        }
-                            ?: throw DiscordRelayedException(
-                                "You must run this command in a ticket channel or specify a ticket id"
-                            )
-                    }
-                }
+                // Get the info from the ticket
+                val ticketChannelId = Snowflake(ticket[Tickets.channelId])
+                val allowedUsersList = mutableListOf<String>()
+                allowedUsersList.add(ticket[Tickets.ownerId].toString())
+                allowedUsersList.addAll(ticket[Tickets.extraUsers].split(","))
 
                 ticketChannel = mainGuild(event.kord)!!.getChannel(ticketChannelId) as TextChannel
                 allowedUsers = allowedUsersList.map { Snowflake(it) }
@@ -334,7 +277,114 @@ internal class TicketSystemExtension : Extension() {
             }
         }
 
-        // TODO: Add user to ticket command
+        chatCommand({ AddUserToTicketArguments(this) }) {
+            name = "addusertoticket"
+            description = "Add a user or users to a ticket"
+
+            check { inMainGuild() }
+            check { isModerator() }
+
+            action {
+                // Get the ticket
+                val ticket = getTicket(arguments.ticketId, arguments.isGlobalId, arguments.configId)
+
+                // Get the info from the ticket
+                val ticketId = ticket[Tickets.globalTicketId]
+                val channelId = ticket[Tickets.channelId]
+                val currentExtraUserList = ticket[Tickets.extraUsers]
+                val currentExtraUsers = currentExtraUserList.split(",").map { it.toLong() }
+
+                // Check the amount of users is allowed
+                val newExtraUsers = arguments.users.map { it.id.value.toLong() }.filter { it !in currentExtraUsers }
+                val extraUsers = currentExtraUsers + newExtraUsers
+                if (extraUsers.size > MAX_EXTRA_USERS_PER_TICKET) {
+                    message.respond {
+                        content = "There can only be a maximum of $MAX_EXTRA_USERS_PER_TICKET extra users in a ticket"
+                    }
+                    return@action
+                }
+
+                val extraUserList = extraUsers.joinToString(",")
+
+                // Update the ticket channel
+                val channel = mainGuild(event.kord)!!.getChannel(Snowflake(channelId)) as TextChannel
+                channel.edit {
+                    val overwrites = permissionOverwrites ?: mutableSetOf()
+                    for (user in newExtraUsers) {
+                        overwrites.add(memberOverwrite(Snowflake(user)) {
+                            allowed = TICKET_PER_USER_ALLOWED_PERMISSIONS
+                        })
+                    }
+                    permissionOverwrites = overwrites
+                }
+
+                // Update the ticket data
+                transaction {
+                    Tickets.update({ Tickets.globalTicketId eq ticketId }) {
+                        it[Tickets.extraUsers] = extraUserList
+                    }
+                }
+
+                // Send notification message
+                channel.createMessage {
+                    content = newExtraUsers.joinToString(", ") { "<@$it>" }
+
+                    embed {
+                        description = """
+                            You have been added to ticket ${channel.mention}
+                            A staff member will explain the situation shortly
+                        """.trimIndent()
+                    }
+                }
+            }
+        }
+
+        chatCommand({ RemoveUserFromTicketArguments(this) }) {
+            name = "removeuserfromticket"
+            description = "Remove a user or users from a ticket"
+
+            check { inMainGuild() }
+            check { isModerator() }
+
+            action {
+                // Get the ticket
+                val ticket = getTicket(arguments.ticketId, arguments.isGlobalId, arguments.configId)
+
+                // Get the info from the ticket
+                val ticketId = ticket[Tickets.globalTicketId]
+                val channelId = ticket[Tickets.channelId]
+                val currentExtraUserList = ticket[Tickets.extraUsers]
+                val currentExtraUsers = currentExtraUserList.split(",").map { it.toLong() }
+
+                // Create the list of users to remove
+                val usersToRemove = arguments.users.map { it.id.value.toLong() }.filter { it in currentExtraUsers }
+                val extraUsers = currentExtraUsers.filter { it !in usersToRemove }
+                val extraUserList = extraUsers.joinToString(",")
+
+                // Update the ticket channel
+                val channel = mainGuild(event.kord)!!.getChannel(Snowflake(channelId)) as TextChannel
+                channel.edit {
+                    val overwrites = permissionOverwrites ?: mutableSetOf()
+                    for (user in usersToRemove) {
+                        overwrites.removeIf { it.id.value.toLong() == user }
+                    }
+                    permissionOverwrites = overwrites
+                }
+
+                // Update the ticket data
+                transaction {
+                    Tickets.update({ Tickets.globalTicketId eq ticketId }) {
+                        it[Tickets.extraUsers] = extraUserList
+                    }
+                }
+
+                // Send response
+                message.respond {
+                    content = "Removed ${usersToRemove.joinToString(", ") { "<@$it>" }} from ticket ${channel.mention}"
+                    allowedMentions = AllowedMentionsBuilder()
+                }
+            }
+        }
     }
 
     private fun setupDb() {
@@ -616,103 +666,61 @@ internal class TicketSystemExtension : Extension() {
         }
     }
 
+    private fun ChatCommandContext<*>.getTicket(
+        ticketId: Int?,
+        isGlobalId: Boolean?,
+        configId: Int?
+    ): ResultRow {
+        if (ticketId != null) {
+            // Get info using the ticket ID
+            var query: Query? = null
+            transaction {
+                if (isGlobalId != null) {
+                    query = if (isGlobalId == true) {
+                        Tickets.select { Tickets.globalTicketId eq ticketId }
+                    } else if (configId != null) {
+                        Tickets.select {
+                            Tickets.ticketConfigId eq configId and (Tickets.ticketId eq ticketId)
+                        }
+                    } else if (ticketConfigIds.size == 1) {
+                        // Ticket ids are unique when there is only one config
+                        Tickets.select { Tickets.ticketId eq ticketId }
+                    } else {
+                        throw DiscordRelayedException(
+                            "You must specify a ticket config id or " +
+                                    "a global ticket id if there are multiple ticket configs"
+                        )
+                    }
+                } else {
+                    query = if (ticketConfigIds.size == 1) {
+                        // Ticket ids are unique when there is only one config
+                        Tickets.select { Tickets.ticketId eq ticketId }
+                    } else {
+                        throw DiscordRelayedException(
+                            "You must specify a ticket config id or " +
+                                    "a global ticket id if there are multiple ticket configs"
+                        )
+                    }
+                }
+            }
+
+            // There should be only one result
+            return query!!.first()
+        } else {
+            // Get info from ticket corresponding to channel
+            val channelId = channel.id.value.toLong()
+            var ticket: ResultRow? = null
+            transaction {
+                ticket = Tickets.select { Tickets.channelId eq channelId }.firstOrNull()
+                    ?: throw DiscordRelayedException(
+                        "You must run this command in a ticket channel or specify a ticket id"
+                    )
+            }
+
+            return ticket!!
+        }
+    }
+
     private fun getTicketConfigDisplayName(configName: String, configId: Int) =
         if (configName.isNotBlank()) "'$configName'" else "ID $configId"
-
-    inner class SetupTicketsArguments : Arguments() {
-        val ticketCategory by channel(
-            "ticketCategory",
-            "The category which open ticket channels belong to",
-            requiredGuild = { GUILD_MAIN }) { _, channel ->
-            if (channel.type != ChannelType.GuildCategory) {
-                throw DiscordRelayedException("Channel must be a category")
-            } else {
-                checkHasPermissionsInChannel(
-                    channel,
-                    Permission.ViewChannel,
-                    Permission.ManageChannels,
-                    Permission.ManageRoles,
-                    Permission.ManageMessages
-                )
-            }
-        }
-
-        val closedTicketCategory by channel(
-            "closedTicketCategory",
-            "The category which closed ticket channels belong to",
-            requiredGuild = { GUILD_MAIN }) { _, channel ->
-            if (channel.type != ChannelType.GuildCategory) {
-                throw DiscordRelayedException("Channel must be a category")
-            } else {
-                checkHasPermissionsInChannel(
-                    channel,
-                    Permission.ViewChannel,
-                    Permission.ManageChannels,
-                    Permission.ManageRoles,
-                    Permission.ManageMessages
-                )
-            }
-        }
-
-        val roles by roleList(
-            "roles",
-            "A list of roles which have access to all tickets in this ticket config",
-            requiredGuild = { GUILD_MAIN }) { _, list ->
-            if (list.size > MAX_TICKET_CONFIG_ROLES) {
-                throw DiscordRelayedException("You can only have $MAX_TICKET_CONFIG_ROLES roles in a ticket config")
-            }
-        }
-
-        val messageChannel by channel(
-            "messageChannel",
-            "The channel in which the message with a button to open a ticket is sent",
-            requiredGuild = { GUILD_MAIN }) { _, channel ->
-            if (channel.type != ChannelType.GuildText) {
-                throw DiscordRelayedException("Channel must be a text channel")
-            }
-        }
-
-        val name by optionalString("name", "The name of the ticket config") { _, value ->
-            if (value != null && value.length > TICKET_CONFIG_NAME_LENGTH) {
-                throw DiscordRelayedException("Name must be less than $TICKET_CONFIG_NAME_LENGTH characters")
-            }
-        }
-
-        val message by optionalMessage("message", "The message that should have the button to open a ticket")
-    }
-
-    inner class GenericTicketConfigArguments : Arguments() {
-        val configId by int("configId", "The id of the ticket config to delete") { _, value ->
-            if (!ticketConfigIds.contains(value)) {
-                throw DiscordRelayedException("A config with this id does not exist")
-            }
-        }
-    }
-
-    inner class FixTicketArguments : Arguments() {
-        val ticketId by optionalInt(
-            "ticketId", "The id of the ticket to delete. " +
-                    "Can be inferred from the current channel. " +
-                    "Must be the global id if there is more than one ticket config and it wasn't specified"
-        )
-        val isGlobalId by optionalBoolean("isGlobalId", "Whether the ticket id is a global id")
-        val configId by optionalInt("configId", "The id of the ticket config to delete the ticket from") { _, value ->
-            if (value != null && !ticketConfigIds.contains(value)) {
-                throw DiscordRelayedException("A config with this id does not exist")
-            }
-        }
-    }
-
-    inner class GenericTicketArguments : Arguments() {
-        val ticketId by int(
-            "ticketId", "The id of the ticket to delete." +
-                    "Must be the global id if there is more than one ticket config and it wasn't specified"
-        )
-        val isGlobalId by optionalBoolean("isGlobalId", "Whether the ticket id is a global id")
-        val configId by optionalInt("configId", "The id of the ticket config to delete the ticket from") { _, value ->
-            if (value != null && !ticketConfigIds.contains(value)) {
-                throw DiscordRelayedException("A config with this id does not exist")
-            }
-        }
-    }
 }
