@@ -8,6 +8,7 @@ import cobaltumsmp.discordbot.GUILD_MAIN
 import cobaltumsmp.discordbot.checkHasPermissionsInChannel
 import cobaltumsmp.discordbot.inMainGuild
 import cobaltumsmp.discordbot.isAdministrator
+import cobaltumsmp.discordbot.isModerator
 import cobaltumsmp.discordbot.mainGuild
 import cobaltumsmp.discordbot.memberOverwrite
 import com.kotlindiscord.kord.extensions.DISCORD_GREEN
@@ -167,8 +168,40 @@ internal class TicketSystemExtension : Extension() {
             }
         }
 
+        chatCommand {
+            name = "listticketconfigs"
+            description = "Lists all ticket configs"
+
+            check { inMainGuild() }
+            check { isModerator() }
+
+            action {
+                val configs = mutableMapOf<Int, String>()
+                transaction {
+                    TicketConfigs.selectAll().forEach {
+                        configs[it[TicketConfigs.id].value] = it[TicketConfigs.name]
+                    }
+                }
+
+                val chunked = configs.map { (id, name) ->
+                    if (name.isNotBlank()) {
+                        "`$id`: '$name'"
+                    } else {
+                        "`$id`"
+                    }
+                }.chunked(10)
+
+                paginator {
+                    for (list in chunked) {
+                        page {
+                            description = list.joinToString("\n")
+                        }
+                    }
+                }
+            }
+        }
+
         // TODO: Fix category permissions command
-        // TODO: List ticket configs command
         // TODO: Fix ticket permissions command
         // TODO: Add user to ticket command
     }
