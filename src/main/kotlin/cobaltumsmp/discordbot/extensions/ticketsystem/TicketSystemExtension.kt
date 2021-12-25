@@ -66,6 +66,20 @@ private val EMOTE_TICKET = ReactionEmoji.Unicode("🎫") // :ticket:
 private val EMOTE_LOCK = ReactionEmoji.Unicode("🔒") // :lock:
 private val EMOTE_WARNING = ReactionEmoji.Unicode("⚠") // :warning:
 
+private val TICKET_CATEGORY_ROLE_ALLOWED_PERMISSIONS = Permissions(
+    Permission.ViewChannel,
+    Permission.ManageMessages,
+    Permission.ReadMessageHistory,
+    Permission.SendMessages
+)
+private val CLOSED_TICKET_CATEGORY_ROLE_ALLOWED_PERMISSIONS = Permissions(
+    Permission.ViewChannel,
+    Permission.ReadMessageHistory
+)
+private val TICKET_CATEGORY_EVERYONE_DENIED_PERMISSIONS = Permissions(Permission.ViewChannel)
+private val CLOSED_TICKET_CATEGORY_EVERYONE_DENIED_PERMISSIONS =
+    Permissions(Permission.ViewChannel, Permission.SendMessages)
+
 private val DB_URL = env("DB_URL")
 private val DB_USER = env("DB_USER")
 private val DB_PASS = env("DB_PASS")
@@ -125,7 +139,7 @@ internal class TicketSystemExtension : Extension() {
             }
         }
 
-        chatCommand(::DeleteTicketConfigArguments) {
+        chatCommand(::GenericTicketConfigArguments) {
             name = "deleteticketconfig"
             description = "Deletes a ticket config"
 
@@ -201,7 +215,28 @@ internal class TicketSystemExtension : Extension() {
             }
         }
 
-        // TODO: Fix category permissions command
+        chatCommand(::GenericTicketConfigArguments) {
+            name = "fixticketconfig"
+            description = "Fixes permissions for a ticket config"
+
+            check { inMainGuild() }
+            check { isModerator() }
+
+            action {
+                val config = TicketConfigs.select { TicketConfigs.id eq arguments.configId }.first()
+                val categoryId = config[TicketConfigs.ticketCategoryId]
+                val closedCategoryId = config[TicketConfigs.closedTicketCategoryId]
+                val roleList = config[TicketConfigs.roles]
+                val roles = roleList.split(",").map { it.toLong() }
+
+                val guild = mainGuild(event.kord)!!
+                val category = guild.getChannel(Snowflake(categoryId)) as Category
+                val closedCategory = guild.getChannel(Snowflake(closedCategoryId)) as Category
+
+                setupTicketCategoriesPermissions(category, closedCategory, roles.map { Snowflake(it) })
+            }
+        }
+
         // TODO: Fix ticket permissions command
         // TODO: Add user to ticket command
     }
@@ -257,35 +292,7 @@ internal class TicketSystemExtension : Extension() {
         val closedCategory = guild.getChannel(Snowflake(closedCategoryId)) as Category
 
         // Setup permissions for the roles
-        val allowedRolePermissions =
-            Permissions(
-                Permission.ViewChannel,
-                Permission.ManageMessages,
-                Permission.ReadMessageHistory,
-                Permission.SendMessages
-            )
-        val deniedEveryonePermissions = Permissions(Permission.ViewChannel)
-        val everyoneRole = guild.getEveryoneRole()
-        category.edit {
-            for (role in arguments.roles) {
-                addRoleOverwrite(role.id) {
-                    allowed = allowedRolePermissions
-                }
-                addRoleOverwrite(everyoneRole.id) {
-                    denied = deniedEveryonePermissions
-                }
-            }
-        }
-        closedCategory.edit {
-            for (role in arguments.roles) {
-                addRoleOverwrite(role.id) {
-                    allowed = allowedRolePermissions
-                }
-                addRoleOverwrite(everyoneRole.id) {
-                    denied = deniedEveryonePermissions
-                }
-            }
-        }
+        setupTicketCategoriesPermissions(category, closedCategory, arguments.roles.map { it.id })
 
         // Send message if needed
         val msgChannel = arguments.messageChannel as TextChannel
@@ -358,6 +365,35 @@ internal class TicketSystemExtension : Extension() {
         }
     }
 
+    private suspend fun setupTicketCategoriesPermissions(
+        category: Category,
+        closedCategory: Category,
+        roles: List<Snowflake>
+    ) {
+        val guild = mainGuild(kord)!!
+        val everyoneRole = guild.getEveryoneRole()
+        category.edit {
+            for (role in roles) {
+                addRoleOverwrite(role) {
+                    allowed = TICKET_CATEGORY_ROLE_ALLOWED_PERMISSIONS
+                }
+            }
+            addRoleOverwrite(everyoneRole.id) {
+                denied = TICKET_CATEGORY_EVERYONE_DENIED_PERMISSIONS
+            }
+        }
+        closedCategory.edit {
+            for (role in roles) {
+                addRoleOverwrite(role) {
+                    allowed = CLOSED_TICKET_CATEGORY_ROLE_ALLOWED_PERMISSIONS
+                }
+            }
+            addRoleOverwrite(everyoneRole.id) {
+                denied = CLOSED_TICKET_CATEGORY_EVERYONE_DENIED_PERMISSIONS
+            }
+        }
+    }
+
     @Suppress("TooGenericExceptionCaught")
     private suspend fun deleteConfig(configId: Int, message: Message) {
         try {
@@ -400,17 +436,23 @@ internal class TicketSystemExtension : Extension() {
         }
 
         if (userOpenTickets.size >= MAX_OPEN_TICKETS_PER_USER) {
-            LOGGER.debug { "User ${owner.username}#${owner.discriminator} ($userId) " +
-                    "has too many open tickets (${userOpenTickets.size})" }
+            LOGGER.debug {
+                "User ${owner.username}#${owner.discriminator} ($userId) " +
+                        "has too many open tickets (${userOpenTickets.size})"
+            }
             throw DiscordRelayedException("You can only have $MAX_OPEN_TICKETS_PER_USER open tickets at a time")
         }
 
         val time = System.currentTimeMillis()
         if (lastTicketCreateTime != -1L && time - lastTicketCreateTime <= MIN_TICKET_CREATE_DELAY) {
-            LOGGER.debug { "User ${owner.username}#${owner.discriminator} ($userId) " +
-                    "has created a ticket in the last 5 minutes" }
-            throw DiscordRelayedException("You have opened a ticket in the last 5 minutes. " +
-                    "Please wait 5 minutes before opening another ticket.")
+            LOGGER.debug {
+                "User ${owner.username}#${owner.discriminator} ($userId) " +
+                        "has created a ticket in the last 5 minutes"
+            }
+            throw DiscordRelayedException(
+                "You have opened a ticket in the last 5 minutes. " +
+                        "Please wait 5 minutes before opening another ticket."
+            )
         }
 
         val id = config!![TicketConfigs.ticketCount]
@@ -540,7 +582,7 @@ internal class TicketSystemExtension : Extension() {
         val message by optionalMessage("message", "The message that should have the button to open a ticket")
     }
 
-    inner class DeleteTicketConfigArguments : Arguments() {
+    inner class GenericTicketConfigArguments : Arguments() {
         val configId by int("configId", "The id of the ticket config to delete") { _, value ->
             if (!ticketConfigIds.contains(value)) {
                 throw DiscordRelayedException("A config with this id does not exist")
