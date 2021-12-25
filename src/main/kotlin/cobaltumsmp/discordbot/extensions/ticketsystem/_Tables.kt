@@ -37,6 +37,9 @@ object Tickets : Table() {
     // A list of user IDs/Snowflakes that have special access to this ticket
     val extraUsers = varchar("extra_users", TICKET_EXTRA_USERS_LENGTH).default("")
 
+    // The ID/Snowflake of the user that is currently assigned to this ticket
+    val assignedUserId = long("assigned_user_id").nullable()
+
     // The ID of the ticket config this ticket belongs to
     val ticketConfigId = reference("ticket_config_id", TicketConfigs)
     override val primaryKey = PrimaryKey(globalTicketId, name = "PK_global_ticket_id")

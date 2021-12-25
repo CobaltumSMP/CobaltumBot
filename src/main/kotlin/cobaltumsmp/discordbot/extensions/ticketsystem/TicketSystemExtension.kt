@@ -439,11 +439,12 @@ class TicketSystemExtension : Extension() {
             }
         }
 
+        // TODO: Close ticket command, with scheduling
+        // TODO: schedule pending ticket closing
         // TODO: Claim ticket command
         // TODO: Unclaim ticket command
         // TODO: Transfer ticket claim command
-        // TODO: Close ticket command, with scheduling
-        // TODO: schedule pending ticket closing
+        // TODO: Assign ticket command
     }
 
     private fun setupDb() {
