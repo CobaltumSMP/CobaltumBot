@@ -385,6 +385,63 @@ class TicketSystemExtension : Extension() {
                 }
             }
         }
+
+        chatCommand({ TransferTicketArguments(this) }) {
+            name = "transferticket"
+            description = "Transfer ownership of a ticket to another user"
+
+            check { inMainGuild() }
+            check { isModerator() }
+
+            action {
+                // Get the ticket
+                val ticket = getTicket(arguments.ticketId, arguments.isGlobalId, arguments.configId)
+
+                // Get the info from the ticket
+                val ticketId = ticket[Tickets.globalTicketId]
+                val currentOwnerId = ticket[Tickets.ownerId]
+                val extraUserList = ticket[Tickets.extraUsers]
+                val extraUsers = extraUserList.split(",").map { it.toLong() }
+
+                // Check if the user is in the ticket
+                val user = arguments.user
+                val userId = user.id.value.toLong()
+                if (userId !in extraUsers) {
+                    message.respond {
+                        content =
+                            "User ${user.mention} is not in ticket ${channel.mention}. " +
+                                    "Please add them first with `addusertoticket`"
+                        allowedMentions = AllowedMentionsBuilder()
+                    }
+                    return@action
+                }
+
+                // Ticket owners don't have extra discord permissions, so we don't need to update them
+
+                // Update the ticket data
+                val newExtraUsers = mutableListOf<Long>()
+                newExtraUsers.addAll(extraUsers.filter { it != userId })
+                newExtraUsers.add(currentOwnerId)
+                val newExtraUserList = newExtraUsers.joinToString(",")
+                transaction {
+                    Tickets.update({ Tickets.globalTicketId eq ticketId }) {
+                        it[Tickets.extraUsers] = newExtraUserList
+                        it[ownerId] = userId
+                    }
+                }
+
+                // Send response
+                message.respond {
+                    content = "Transferred ticket ${channel.mention} to ${user.mention}"
+                }
+            }
+        }
+
+        // TODO: Claim ticket command
+        // TODO: Unclaim ticket command
+        // TODO: Transfer ticket claim command
+        // TODO: Close ticket command, with scheduling
+        // TODO: schedule pending ticket closing
     }
 
     private fun setupDb() {
