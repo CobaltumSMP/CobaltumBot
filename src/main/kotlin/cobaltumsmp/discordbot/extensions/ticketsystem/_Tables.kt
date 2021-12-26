@@ -8,7 +8,7 @@ import org.jetbrains.exposed.sql.transactions.TransactionManager
 internal const val TICKET_CONFIG_NAME_LENGTH = 64
 internal const val TICKET_CONFIG_ROLES_LENGTH = 255
 internal const val TICKET_EXTRA_USERS_LENGTH = 255
-internal const val TIME_LENGTH = 24
+internal const val TIME_LENGTH = 30
 
 object Tickets : Table() {
     // The ID of the ticket globally

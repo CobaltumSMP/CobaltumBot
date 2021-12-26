@@ -7,6 +7,7 @@ import dev.kord.common.entity.Snowflake
 import dev.kord.core.Kord
 import dev.kord.core.entity.Guild
 import dev.kord.rest.builder.channel.PermissionOverwriteBuilder
+import kotlinx.datetime.DateTimePeriod
 
 internal fun multipleSnowflakes(key: String): List<Snowflake> =
     envOrNull(key)?.let { v -> v.split(",").map { Snowflake(it.trim()) } } ?: emptyList()
@@ -18,6 +19,19 @@ internal fun memberOverwrite(memberId: Snowflake, builder: PermissionOverwriteBu
 
 internal fun roleOverwrite(roleId: Snowflake, builder: PermissionOverwriteBuilder.() -> Unit) =
     PermissionOverwriteBuilder(OverwriteType.Role, roleId).apply(builder).toOverwrite()
+
+internal fun DateTimePeriod.toReadableString(): String {
+    val builder = StringBuilder()
+
+    if (seconds > 0) builder.append("$seconds seconds ")
+    if (minutes > 0) builder.append("$minutes minutes ")
+    if (hours > 0) builder.append("$hours hours ")
+    if (days > 0) builder.append("$days days ")
+    if (months > 0) builder.append("$months months ")
+    if (years > 0) builder.append("$years years")
+
+    return builder.toString().trim()
+}
 
 internal fun permissionToString(permission: Permission): String = when (permission) {
     Permission.CreateInstantInvite -> "Create Instant Invite"
