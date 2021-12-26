@@ -10,7 +10,11 @@ import cobaltumsmp.discordbot.isModerator
 import cobaltumsmp.discordbot.mainGuild
 import cobaltumsmp.discordbot.memberOverwrite
 import com.kotlindiscord.kord.extensions.DISCORD_GREEN
+import com.kotlindiscord.kord.extensions.DISCORD_YELLOW
 import com.kotlindiscord.kord.extensions.DiscordRelayedException
+import com.kotlindiscord.kord.extensions.checks.channelIdFor
+import com.kotlindiscord.kord.extensions.checks.types.CheckContext
+import com.kotlindiscord.kord.extensions.checks.userFor
 import com.kotlindiscord.kord.extensions.commands.chat.ChatCommandContext
 import com.kotlindiscord.kord.extensions.components.components
 import com.kotlindiscord.kord.extensions.components.ephemeralButton
@@ -18,11 +22,14 @@ import com.kotlindiscord.kord.extensions.components.publicButton
 import com.kotlindiscord.kord.extensions.components.types.emoji
 import com.kotlindiscord.kord.extensions.extensions.Extension
 import com.kotlindiscord.kord.extensions.extensions.chatCommand
+import com.kotlindiscord.kord.extensions.extensions.event
 import com.kotlindiscord.kord.extensions.types.PublicInteractionContext
 import com.kotlindiscord.kord.extensions.types.respondEphemeral
 import com.kotlindiscord.kord.extensions.utils.env
 import com.kotlindiscord.kord.extensions.utils.envOrNull
 import com.kotlindiscord.kord.extensions.utils.respond
+import com.kotlindiscord.kord.extensions.utils.scheduling.Scheduler
+import com.kotlindiscord.kord.extensions.utils.scheduling.Task
 import dev.kord.common.entity.ButtonStyle
 import dev.kord.common.entity.Permission
 import dev.kord.common.entity.Permissions
@@ -36,9 +43,14 @@ import dev.kord.core.entity.ReactionEmoji
 import dev.kord.core.entity.User
 import dev.kord.core.entity.channel.Category
 import dev.kord.core.entity.channel.TextChannel
+import dev.kord.core.event.message.MessageCreateEvent
 import dev.kord.rest.builder.message.AllowedMentionsBuilder
 import dev.kord.rest.builder.message.create.embed
 import dev.kord.rest.builder.message.modify.MessageModifyBuilder
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.plus
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.Query
@@ -51,6 +63,7 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 
 internal const val MAX_TICKET_CONFIG_ROLES = TICKET_CONFIG_ROLES_LENGTH / 20
@@ -58,6 +71,7 @@ internal const val MIN_TICKET_CREATE_DELAY_MINUTES = 30
 internal const val MIN_TICKET_CREATE_DELAY = MIN_TICKET_CREATE_DELAY_MINUTES * 60 * 1000L
 internal const val MAX_OPEN_TICKETS_PER_USER = 3
 internal const val MAX_EXTRA_USERS_PER_TICKET = TICKET_EXTRA_USERS_LENGTH / 20
+internal const val MIN_SCHEDULE_TICKET_CLOSE_DELAY = 30
 
 private val EMOTE_TICKET = ReactionEmoji.Unicode("🎫") // :ticket:
 private val EMOTE_LOCK = ReactionEmoji.Unicode("🔒") // :lock:
@@ -89,10 +103,15 @@ private val LOGGER = KotlinLogging.logger("cobaltumsmp.discordbot.extensions.tic
 class TicketSystemExtension : Extension() {
     override val name: String = "Ticket System"
 
-    val ticketConfigIds: MutableList<Int> = mutableListOf()
-    private val ticketConfigMessageChannelIds: MutableList<Long> = mutableListOf()
-    private val globalTicketIds: MutableList<Int> = mutableListOf()
-    private val ticketsPendingClose: MutableMap<Int, Long> = mutableMapOf()
+    private val scheduler: Scheduler = Scheduler()
+    private val closeTicketTasks = mutableMapOf<Int, Task>()
+
+    val ticketConfigIds = mutableListOf<Int>()
+    private val ticketConfigMessageChannelIds = mutableListOf<Long>()
+    private val globalTicketIds = mutableListOf<Int>()
+    private val ticketsPendingClose = mutableMapOf<Int, Instant>()
+    private val ticketChannelIds = mutableMapOf<Long, Int>()
+    private val ticketOwners = mutableMapOf<Int, Long>()
 
     @Suppress("TooGenericExceptionCaught")
     override suspend fun setup() {
@@ -125,6 +144,48 @@ class TicketSystemExtension : Extension() {
         }
 
         setupInteractions()
+
+        schedulePendingTicketsClose()
+
+        // Cancel closing a ticket if the owner or an extra user says something
+        event<MessageCreateEvent> {
+            check {
+                val channelId = channelIdFor(event)!!.toLong()
+                passIf(channelId in ticketChannelIds)
+            }
+            check {
+                val channelId = channelIdFor(event)!!.toLong()
+                val ticketId = ticketChannelIds[channelId]!!
+                passIf(ticketId in ticketsPendingClose)
+            }
+
+            action {
+                val channelId = channelIdFor(event)!!.toLong()
+                val ticketId = ticketChannelIds[channelId]!!
+                val userId = userFor(event)!!.id.value.toLong()
+
+                // Get the ticket
+                var ticket: ResultRow? = null
+                transaction {
+                    ticket = Tickets.select { Tickets.globalTicketId eq ticketId }.first()
+                }
+
+                // Get the ticket info
+                val ownerId = ticket!![Tickets.ownerId]
+                val extraUserList = ticket!![Tickets.extraUsers]
+                val extraUsers = extraUserList.split(",").map { it.toLong() }
+
+                if (userId == ownerId || userId in extraUsers) {
+                    // Cancel task
+                    val task = closeTicketTasks[ticketId]!!
+                    task.cancel()
+
+                    // Remove task and ticket
+                    closeTicketTasks.remove(ticketId)
+                    ticketsPendingClose.remove(ticketId)
+                }
+            }
+        }
 
         chatCommand(::SetupTicketsArguments) {
             name = "setuptickets"
@@ -431,6 +492,7 @@ class TicketSystemExtension : Extension() {
                         it[ownerId] = userId
                     }
                 }
+                ticketOwners.replace(ticketId, userId)
 
                 // Send response
                 message.respond {
@@ -439,8 +501,56 @@ class TicketSystemExtension : Extension() {
             }
         }
 
-        // TODO: Close ticket command, with scheduling
-        // TODO: schedule pending ticket closing
+        chatCommand({ CloseTicketArguments(this) }) {
+            name = "closeticket"
+            description = "Close a ticket"
+
+            check { inMainGuild() }
+            check { canCloseTicket() }
+
+            action {
+                // Get the ticket
+                val ticket = getTicket(arguments.ticketId, arguments.isGlobalId, arguments.configId)
+
+                // Get the info from the ticket
+                val ticketId = ticket[Tickets.globalTicketId]
+                val channelId = ticket[Tickets.channelId]
+
+                if (arguments.delay != null) {
+                    val now = Clock.System.now()
+                    val systemTZ = TimeZone.currentSystemDefault()
+                    val closeTime = now.plus(arguments.delay!!, systemTZ)
+                    scheduleTicketClose(ticketId, closeTime, now)
+
+                    // Send embed
+                    val guild = mainGuild(event.kord)!!
+                    val channel = guild.getChannel(Snowflake(channelId)) as TextChannel
+                    channel.createMessage {
+                        embed {
+                            title = "Ticket closed"
+                            description = "This ticket will be closed in ${arguments.delay}."
+                            color = DISCORD_YELLOW
+                        }
+                    }
+
+                    // Update the ticket data
+                    transaction {
+                        Tickets.update({ Tickets.globalTicketId eq ticketId }) {
+                            it[Tickets.closeTime] = closeTime.toString()
+                        }
+                    }
+                    ticketsPendingClose[ticketId] = closeTime
+                    return@action
+                }
+
+                // Close the ticket
+                doCloseTicket(ticketId)
+            }
+        }
+
+        // TODO: Rename ticket command
+        // TODO: Repoen ticket command
+        // TODO: Delete ticket command
         // TODO: Claim ticket command
         // TODO: Unclaim ticket command
         // TODO: Transfer ticket claim command
@@ -453,22 +563,30 @@ class TicketSystemExtension : Extension() {
     }
 
     private fun updateConfigs() {
-        val query = TicketConfigs.selectAll()
+        val allConfigs = mutableListOf<ResultRow>()
+        allConfigs.addAll(TicketConfigs.selectAll())
         ticketConfigIds.clear()
-        ticketConfigIds.addAll(query.map { it[TicketConfigs.id].value })
+        ticketConfigIds.addAll(allConfigs.map { it[TicketConfigs.id].value })
         ticketConfigMessageChannelIds.clear()
-        ticketConfigMessageChannelIds.addAll(query.map { it[TicketConfigs.messageChannelId] })
+        ticketConfigMessageChannelIds.addAll(allConfigs.map { it[TicketConfigs.messageChannelId] })
     }
 
     private fun updateTickets() {
+        val allTickets = mutableListOf<ResultRow>()
+        allTickets.addAll(Tickets.selectAll())
         globalTicketIds.clear()
-        globalTicketIds.addAll(Tickets.selectAll().map { it[Tickets.globalTicketId] })
+        globalTicketIds.addAll(allTickets.map { it[Tickets.globalTicketId] })
 
-        val time = System.currentTimeMillis()
+        val now = Clock.System.now().toEpochMilliseconds()
         ticketsPendingClose.clear()
-        ticketsPendingClose.putAll(Tickets.select {
-            Tickets.closeTime.isNotNull() and (Tickets.closeTime greaterEq time)
-        }.associate { it[Tickets.globalTicketId] to it[Tickets.closeTime]!! })
+        ticketsPendingClose.putAll(Tickets.select { Tickets.closeTime.isNotNull() and (Tickets.closed eq false) }
+            .filter { Instant.parse(it[Tickets.closeTime]!!).toEpochMilliseconds() >= now }
+            .associate { it[Tickets.globalTicketId] to Instant.parse(it[Tickets.closeTime]!!) })
+
+        ticketChannelIds.clear()
+        ticketChannelIds.putAll(allTickets.associate { it[Tickets.channelId] to it[Tickets.globalTicketId] })
+        ticketOwners.clear()
+        ticketOwners.putAll(allTickets.associate { it[Tickets.globalTicketId] to it[Tickets.ownerId] })
     }
 
     private suspend fun setupInteractions() {
@@ -493,7 +611,7 @@ class TicketSystemExtension : Extension() {
             val message = channel.getMessageOrNull(Snowflake(it[Tickets.botMsgId]!!))!!
 
             message.edit {
-                setupTicketButtons(it[Tickets.globalTicketId])
+                setupTicketButtons(it[Tickets.globalTicketId], message)
             }
         }
     }
@@ -714,7 +832,7 @@ class TicketSystemExtension : Extension() {
             }
         }
         botMsg.edit {
-            setupTicketButtons(globalTicketId)
+            setupTicketButtons(globalTicketId, botMsg)
         }
         val msgId = botMsg.id.value.toLong()
 
@@ -729,18 +847,133 @@ class TicketSystemExtension : Extension() {
         }
     }
 
-    private suspend fun MessageModifyBuilder.setupTicketButtons(globalTicketId: Int) {
+    private suspend fun doCloseTicket(globalTicketId: Int, closeTime: Instant = Clock.System.now()) {
+        LOGGER.debug { "Closing ticket $globalTicketId" }
+
+        // Get the ticket
+        var ticket: ResultRow? = null
+        transaction {
+            ticket = Tickets.select { Tickets.globalTicketId eq globalTicketId }.first()
+        }
+
+        // Get ticket info
+        val channelId = ticket!![Tickets.channelId]
+        val extraUserList = ticket!![Tickets.extraUsers]
+        val ownerId = ticket!![Tickets.ownerId].toLong()
+        val configId = ticket!![Tickets.ticketConfigId]
+
+        // Get the ticket config
+        var config: ResultRow? = null
+        transaction {
+            config = TicketConfigs.select { TicketConfigs.id eq configId }.first()
+        }
+
+        // Get ticket config info
+        val closedCategoryId = config!![TicketConfigs.closedTicketCategoryId]
+
+        // Send close message
+        val channel = mainGuild(kord)!!.getChannel(Snowflake(channelId)) as TextChannel
+        channel.createMessage {
+            content = "The ticket has been closed"
+        }
+
+        // Remove user permissions
+        val extraUsers = extraUserList.split(",").map { Snowflake(it.toLong()) }.toMutableList()
+        extraUsers.add(Snowflake(ownerId))
+        channel.edit {
+            val overwrites = permissionOverwrites ?: mutableSetOf()
+            overwrites.removeIf { it.id in extraUsers }
+            permissionOverwrites = overwrites
+        }
+
+        // Change category
+        channel.edit {
+            parentId = Snowflake(closedCategoryId)
+        }
+
+        // Send close message to owner
+        val owner = mainGuild(kord)!!.getMember(Snowflake(ownerId))
+        val dms = owner.getDmChannel()
+        dms.createMessage {
+            content = "Your ticket #${channel.name} has been closed"
+        }
+
+        transaction {
+            Tickets.update({ Tickets.globalTicketId eq globalTicketId }) {
+                it[Tickets.closeTime] = closeTime.toString()
+                it[closed] = true
+            }
+        }
+    }
+
+    private fun schedulePendingTicketsClose() {
+        val now = Clock.System.now()
+        for ((ticketId, instant) in ticketsPendingClose) {
+            scheduleTicketClose(ticketId, instant, now)
+        }
+    }
+
+    private fun scheduleTicketClose(ticketId: Int, instant: Instant, now: Instant) {
+        var scheduleTime = instant - now
+        if (scheduleTime.inWholeSeconds < MIN_SCHEDULE_TICKET_CLOSE_DELAY) {
+            scheduleTime = Duration.seconds(MIN_SCHEDULE_TICKET_CLOSE_DELAY)
+        }
+
+        LOGGER.debug { "Scheduling ticket $ticketId to close in $scheduleTime" }
+        val task = scheduler.schedule(scheduleTime) {
+            doCloseTicket(ticketId)
+        }
+        closeTicketTasks[ticketId] = task
+    }
+
+    private suspend fun MessageModifyBuilder.setupTicketButtons(globalTicketId: Int, message: Message) {
         LOGGER.debug { "Setting up ticket buttons for #$globalTicketId" }
         components {
-            publicButton {
+            ephemeralButton {
                 emoji(EMOTE_LOCK)
                 label = "Close Ticket"
+                style = ButtonStyle.Danger
                 this.id = "$globalTicketId/CloseTicket"
 
+                check { canCloseTicket() }
+
                 action {
-                    // TODO
-                    respondEphemeral {
-                        content = "This feature is not yet implemented"
+                    message.edit {
+                        addCloseTicketConfirmationButtons(globalTicketId, message)
+                    }
+                }
+                initialResponse {
+                    content = "Are you sure you want to close this ticket? Press the confirm button to do it."
+                }
+            }
+        }
+    }
+
+    private suspend fun MessageModifyBuilder.addCloseTicketConfirmationButtons(globalTicketId: Int, message: Message) {
+        components {
+            ephemeralButton {
+                emoji(EMOTE_WARNING)
+                label = "Confirm"
+                style = ButtonStyle.Danger
+                this.id = "$globalTicketId/CloseTicketConfirm"
+
+                check { canCloseTicket() }
+
+                action {
+                    doCloseTicket(globalTicketId)
+                }
+            }
+
+            ephemeralButton {
+                label = "Cancel"
+                this.id = "$globalTicketId/CloseTicketCancel"
+
+                check { canCloseTicket() }
+
+                action {
+                    message.edit {
+                        // Reset buttons
+                        setupTicketButtons(globalTicketId, message)
                     }
                 }
             }
@@ -799,6 +1032,25 @@ class TicketSystemExtension : Extension() {
             }
 
             return ticket!!
+        }
+    }
+
+    private suspend fun CheckContext<*>.canCloseTicket() {
+        if (!passed) {
+            return
+        }
+
+        // Moderators can close tickets from anywhere
+        val channelId = channelIdFor(event)!!.toLong()
+        if (channelId !in ticketChannelIds.keys) {
+            isModerator()
+        } else {
+            // Only ticket owners can close tickets, from its channel
+            val userId = userFor(event)!!.id.value.toLong()
+            val globalTicketId = ticketChannelIds[channelId]!!
+            if (ticketOwners[globalTicketId] != userId) {
+                fail("You must be owner of the ticket to close it")
+            }
         }
     }
 

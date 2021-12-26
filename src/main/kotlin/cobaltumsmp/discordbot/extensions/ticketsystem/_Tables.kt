@@ -8,6 +8,7 @@ import org.jetbrains.exposed.sql.transactions.TransactionManager
 internal const val TICKET_CONFIG_NAME_LENGTH = 64
 internal const val TICKET_CONFIG_ROLES_LENGTH = 255
 internal const val TICKET_EXTRA_USERS_LENGTH = 255
+internal const val TIME_LENGTH = 24
 
 object Tickets : Table() {
     // The ID of the ticket globally
@@ -25,8 +26,8 @@ object Tickets : Table() {
     // Whether this ticket is closed
     val closed = bool("closed").default(false)
 
-    // The time this ticket will or has closed
-    val closeTime = long("close_time").nullable()
+    // The time (in ISO-8601 format) this ticket will or has closed
+    val closeTime = varchar("close_time", TIME_LENGTH).nullable()
 
     // The ID/Snowflake of the base message sent by the bot
     val botMsgId = long("bot_msg_id").nullable()

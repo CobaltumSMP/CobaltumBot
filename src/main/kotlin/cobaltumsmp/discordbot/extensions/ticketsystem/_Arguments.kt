@@ -7,6 +7,7 @@ import com.kotlindiscord.kord.extensions.commands.Arguments
 import com.kotlindiscord.kord.extensions.commands.converters.impl.channel
 import com.kotlindiscord.kord.extensions.commands.converters.impl.int
 import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalBoolean
+import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalDuration
 import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalInt
 import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalMessage
 import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalString
@@ -134,6 +135,21 @@ class TransferTicketArguments(private val extension: TicketSystemExtension) : Ar
     val user by user("user", "The user to transfer the ticket ownership to")
     val ticketId by optionalInt(
         "ticketId", "The id of the ticket to remove users from. " +
+                "Can be inferred from the current channel. " +
+                "Must be the global id if there is more than one ticket config and it wasn't specified"
+    )
+    val isGlobalId by optionalBoolean("isGlobalId", "Whether the ticket id is a global id")
+    val configId by optionalInt("configId", "The id of the ticket config from which the ticket is") { _, value ->
+        if (value != null && !extension.ticketConfigIds.contains(value)) {
+            throw DiscordRelayedException("A config with this id does not exist")
+        }
+    }
+}
+
+class CloseTicketArguments(private val extension: TicketSystemExtension) : Arguments() {
+    val delay by optionalDuration("delay", "The delay before closing the ticket")
+    val ticketId by optionalInt(
+        "ticketId", "The id of the ticket to fix. " +
                 "Can be inferred from the current channel. " +
                 "Must be the global id if there is more than one ticket config and it wasn't specified"
     )
