@@ -8,6 +8,7 @@ import org.jetbrains.exposed.sql.transactions.TransactionManager
 internal const val TICKET_CONFIG_NAME_LENGTH = 64
 internal const val TICKET_CONFIG_ROLES_LENGTH = 255
 internal const val TICKET_EXTRA_USERS_LENGTH = 255
+internal const val TICKET_BASE_NAME_LENGTH = 15
 internal const val TIME_LENGTH = 30
 
 object Tickets : Table() {
@@ -72,5 +73,9 @@ object TicketConfigs : IntIdTable() {
     // How many tickets have been opened in this ticket config
     val ticketCount = integer("ticket_count").default(0)
 
+    // The base name of the ticket channels
+    val ticketsBaseName = varchar("tickets_base_name", TICKET_BASE_NAME_LENGTH).default("ticket")
+
+    // The name of the ticket config
     val name = varchar("name", TICKET_CONFIG_NAME_LENGTH).default("")
 }

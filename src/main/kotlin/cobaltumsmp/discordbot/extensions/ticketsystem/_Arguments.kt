@@ -76,6 +76,12 @@ class SetupTicketsArguments : Arguments() {
         }
     }
 
+    val ticketsBaseName by optionalString("ticketsBaseName", "The base name of the ticket channels") { _, value ->
+        if (value != null && value.length > TICKET_BASE_NAME_LENGTH) {
+            throw DiscordRelayedException("Name must be less than $TICKET_BASE_NAME_LENGTH characters")
+        }
+    }
+
     val message by optionalMessage("message", "The message that should have the button to open a ticket")
 }
 

@@ -111,10 +111,8 @@ class TicketSystemExtension : Extension() {
 
     // Ticket configs cache
     val ticketConfigIds = mutableListOf<Int>()
-    private val ticketConfigMessageChannelIds = mutableListOf<Long>()
 
     // Tickets cache
-    private val globalTicketIds = mutableListOf<Int>()
     private val ticketChannelIds = mutableMapOf<Long, Int>()
     private val ticketOwners = mutableMapOf<Int, Long>()
     private val ticketsPendingClose = mutableMapOf<Int, Instant>()
@@ -655,15 +653,11 @@ class TicketSystemExtension : Extension() {
         allConfigs.addAll(TicketConfigs.selectAll())
         ticketConfigIds.clear()
         ticketConfigIds.addAll(allConfigs.map { it[TicketConfigs.id].value })
-        ticketConfigMessageChannelIds.clear()
-        ticketConfigMessageChannelIds.addAll(allConfigs.map { it[TicketConfigs.messageChannelId] })
     }
 
     private fun updateTickets() {
         val allTickets = mutableListOf<ResultRow>()
         allTickets.addAll(Tickets.selectAll())
-        globalTicketIds.clear()
-        globalTicketIds.addAll(allTickets.map { it[Tickets.globalTicketId] })
 
         val now = Clock.System.now().toEpochMilliseconds()
         ticketsPendingClose.clear()
@@ -735,6 +729,7 @@ class TicketSystemExtension : Extension() {
         var id: Int = -1
 
         try {
+            // Update database
             transaction {
                 id = TicketConfigs.insertAndGetId {
                     it[ticketCategoryId] = categoryId
@@ -743,10 +738,15 @@ class TicketSystemExtension : Extension() {
                     it[messageChannelId] = msgChannelId
                     it[roles] = rolesStr
                     it[name] = configName
-                }.value
 
-                ticketConfigIds.add(id)
+                    if (arguments.ticketsBaseName != null) {
+                        it[ticketsBaseName] = arguments.ticketsBaseName!!
+                    }
+                }.value
             }
+
+            // Update cache
+            ticketConfigIds.add(id)
 
             LOGGER.debug { "Inserted ticket config $id" }
         } catch (e: Exception) {
@@ -759,6 +759,7 @@ class TicketSystemExtension : Extension() {
             setupTicketConfigButtons(id)
         }
 
+        // Send message to the user
         LOGGER.info { "Created ticket config${if (configName.isNotBlank()) " '$configName'" else ""} id $id" }
         message.respond("Created ticket config${if (configName.isNotBlank()) " '$configName'" else ""} id $id")
     }
@@ -879,10 +880,11 @@ class TicketSystemExtension : Extension() {
         val categoryId = config!![TicketConfigs.ticketCategoryId]
         val roleList = config!![TicketConfigs.roles]
         val roles = roleList.split(",").map { Snowflake(it.toLong()) }
+        val baseName = config!![TicketConfigs.ticketsBaseName]
         val guild = mainGuild(kord)!!
         val category = guild.getChannel(Snowflake(categoryId)) as Category
 
-        val channel = category.createTextChannel("ticket-${id.toString().padStart(4, '0')}")
+        val channel = category.createTextChannel("$baseName-${id.toString().padStart(4, '0')}")
         val chnlId = channel.id.value.toLong()
 
         // Insert to database
@@ -901,7 +903,6 @@ class TicketSystemExtension : Extension() {
         }
 
         // Update cache
-        globalTicketIds.add(globalTicketId)
         ticketChannelIds[channel.id.value.toLong()] = globalTicketId
         ticketOwners[globalTicketId] = userId
 
