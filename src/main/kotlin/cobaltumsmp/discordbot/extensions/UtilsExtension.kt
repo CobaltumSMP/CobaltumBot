@@ -26,6 +26,7 @@ import dev.kord.common.entity.PresenceStatus
 import dev.kord.common.entity.Snowflake
 import dev.kord.core.behavior.channel.createMessage
 import dev.kord.core.entity.channel.GuildChannel
+import dev.kord.core.entity.channel.NewsChannel
 import dev.kord.core.entity.channel.TextChannel
 import mu.KotlinLogging
 import java.util.Locale
@@ -34,7 +35,8 @@ private val LOGGER = KotlinLogging.logger("cobaltumsmp.discordbot.extensions.Uti
 
 internal class UtilsExtension : Extension() {
     override val name = "utils"
-    private val broadcastChannels = mutableMapOf<Snowflake, TextChannel>()
+    private val broadcastTextChannels = mutableMapOf<Snowflake, TextChannel>()
+    private val broadcastNewsChannels = mutableMapOf<Snowflake, NewsChannel>()
 
     override suspend fun setup() {
         val guild = mainGuild(kord)
@@ -96,15 +98,18 @@ internal class UtilsExtension : Extension() {
 
         for (channelId in CHANNEL_ID_BROADCAST) {
             val channel = kord.getChannel(channelId)
-            if (channel != null && channel.type == ChannelType.GuildText) {
-                broadcastChannels[channelId] = channel as TextChannel
+            if (channel != null) {
+                when (channel.type) {
+                    ChannelType.GuildText -> broadcastTextChannels[channelId] = channel as TextChannel
+                    ChannelType.GuildNews -> broadcastNewsChannels[channelId] = channel as NewsChannel
+                    else -> LOGGER.warn { "Channel $channel is not a guild text channel" }
+                }
             } else {
-                channel?.let { LOGGER.warn { "Channel $it is not a guild text channel" } }
-                    ?: LOGGER.warn { "Channel $channelId does not exist" }
+                LOGGER.warn { "Channel $channelId does not exist" }
             }
         }
 
-        if (broadcastChannels.isEmpty()) {
+        if (broadcastTextChannels.isEmpty() && broadcastNewsChannels.isEmpty()) {
             LOGGER.warn { "No broadcast channel specified" }
         }
 
@@ -116,12 +121,17 @@ internal class UtilsExtension : Extension() {
             check { isModerator() }
 
             action {
-                if (broadcastChannels.isEmpty()) {
+                if (broadcastTextChannels.isEmpty() && broadcastNewsChannels.isEmpty()) {
                     message.respond("No broadcast channel configured", pingInReply = false)
                     return@action
                 }
 
-                for (channel in broadcastChannels.values) {
+                for (channel in broadcastTextChannels.values) {
+                    channel.createMessage {
+                        content = arguments.message
+                    }
+                }
+                for (channel in broadcastNewsChannels.values) {
                     channel.createMessage {
                         content = arguments.message
                     }
