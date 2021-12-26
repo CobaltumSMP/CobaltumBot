@@ -1,0 +1,41 @@
+name: Build & deploy
+
+on:
+  push
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Make gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Build
+        run: ./gradlew build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        if: success()
+        with:
+          path: build/libs/*.jar
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-20.04
+    needs: build
+    if: ${{ github.ref == 'refs/heads/master' && ! startsWith(github.event.head_commit.message, '[nodeploy]') }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Deploy to Heroku
+        uses: akhileshns/heroku-deploy@v3.12.12
+        with:
+          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+          heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
+          heroku_email: ${{ secrets.HEROKU_EMAIL }}
