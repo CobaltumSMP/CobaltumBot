@@ -634,7 +634,36 @@ class TicketSystemExtension : Extension() {
             }
         }
 
-        // TODO: Rename ticket command
+        chatCommand({ RenameTicketArguments(this) }) {
+            name = "renameticket"
+            description = "Rename a ticket"
+
+            check { inMainGuild() }
+            check { isModerator() }
+
+            action {
+                // Get the ticket
+                val ticket = getTicket(arguments.ticketId, arguments.isGlobalId, arguments.configId)
+
+                // Get the info from the ticket
+                val ticketId = ticket[Tickets.ticketId]
+                val channelId = ticket[Tickets.channelId]
+
+                // Update the channel name
+                val guild = mainGuild(event.kord)!!
+                val channel = guild.getChannel(Snowflake(channelId)) as TextChannel
+                val baseName = arguments.name
+                val id = ticketId.toString().padStart(4, '0')
+                channel.edit {
+                    name = "$baseName-$id"
+                }
+
+                message.respond {
+                    content = "Renamed the ticket"
+                }
+            }
+        }
+
         // TODO: Repoen ticket command
         // TODO: Delete ticket command
         // TODO: Claim ticket command

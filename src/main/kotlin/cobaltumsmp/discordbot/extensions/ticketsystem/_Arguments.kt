@@ -12,6 +12,7 @@ import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalInt
 import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalMessage
 import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalString
 import com.kotlindiscord.kord.extensions.commands.converters.impl.roleList
+import com.kotlindiscord.kord.extensions.commands.converters.impl.string
 import com.kotlindiscord.kord.extensions.commands.converters.impl.user
 import com.kotlindiscord.kord.extensions.commands.converters.impl.userList
 import dev.kord.common.entity.ChannelType
@@ -154,6 +155,21 @@ class TransferTicketArguments(private val extension: TicketSystemExtension) : Ar
 
 class CloseTicketArguments(private val extension: TicketSystemExtension) : Arguments() {
     val delay by optionalDuration("delay", "The delay before closing the ticket")
+    val ticketId by optionalInt(
+        "ticketId", "The id of the ticket to fix. " +
+                "Can be inferred from the current channel. " +
+                "Must be the global id if there is more than one ticket config and it wasn't specified"
+    )
+    val isGlobalId by optionalBoolean("isGlobalId", "Whether the ticket id is a global id")
+    val configId by optionalInt("configId", "The id of the ticket config from which the ticket is") { _, value ->
+        if (value != null && !extension.ticketConfigIds.contains(value)) {
+            throw DiscordRelayedException("A config with this id does not exist")
+        }
+    }
+}
+
+class RenameTicketArguments(private val extension: TicketSystemExtension) : Arguments() {
+    val name by string("name", "The new name of the ticket")
     val ticketId by optionalInt(
         "ticketId", "The id of the ticket to fix. " +
                 "Can be inferred from the current channel. " +
