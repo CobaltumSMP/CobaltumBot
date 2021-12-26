@@ -28,7 +28,6 @@ import com.kotlindiscord.kord.extensions.extensions.chatCommand
 import com.kotlindiscord.kord.extensions.extensions.event
 import com.kotlindiscord.kord.extensions.types.PublicInteractionContext
 import com.kotlindiscord.kord.extensions.types.respondEphemeral
-import com.kotlindiscord.kord.extensions.utils.env
 import com.kotlindiscord.kord.extensions.utils.envOrNull
 import com.kotlindiscord.kord.extensions.utils.respond
 import com.kotlindiscord.kord.extensions.utils.scheduling.Scheduler
@@ -66,6 +65,7 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import java.net.URI
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 
@@ -96,9 +96,10 @@ private val CLOSED_TICKET_CATEGORY_EVERYONE_DENIED_PERMISSIONS =
 private val TICKET_PER_USER_ALLOWED_PERMISSIONS =
     Permissions(Permission.ViewChannel) // Only this permission is denied for @everyone
 
-private val DB_URL = env("DB_URL")
-private val DB_USER = env("DB_USER")
-private val DB_PASS = env("DB_PASS")
+private val DATABASE_URL = envOrNull("DATABASE_URL") // Heroku Postgres database URL
+private val DB_URL = envOrNull("DB_URL")
+private val DB_USER = envOrNull("DB_USER")
+private val DB_PASS = envOrNull("DB_PASS")
 private val JDBC_DRIVER = envOrNull("JDBC_DRIVER")
 
 private val LOGGER = KotlinLogging.logger("cobaltumsmp.discordbot.extensions.ticketsystem")
@@ -120,12 +121,28 @@ class TicketSystemExtension : Extension() {
     @Suppress("TooGenericExceptionCaught")
     override suspend fun setup() {
         LOGGER.info { "Setting up Ticket System" }
-        LOGGER.info { "Connecting to database $DB_URL" + (JDBC_DRIVER?.let { " with driver $it" } ?: "") }
+
+        val url: String
+        val username: String
+        val password: String
+        if (DATABASE_URL != null) {
+            val uri = URI(DATABASE_URL)
+
+            username = uri.userInfo.split(":")[0]
+            password = uri.userInfo.split(":")[1]
+            url = "jdbc:postgresql://${uri.host}:${uri.port}${uri.path}"
+        } else {
+            url = DB_URL!!
+            username = DB_USER!!
+            password = DB_PASS!!
+        }
+
+        LOGGER.info { "Connecting to database $url" + (JDBC_DRIVER?.let { " with driver $it" } ?: "") }
 
         if (JDBC_DRIVER != null) {
-            Database.connect(DB_URL, user = DB_USER, password = DB_PASS, driver = JDBC_DRIVER)
+            Database.connect(url, user = username, password = password, driver = JDBC_DRIVER)
         } else {
-            Database.connect(DB_URL, user = DB_USER, password = DB_PASS)
+            Database.connect(url, user = username, password = password)
         }
 
         // Try to set up the database and retrieve the initial data
