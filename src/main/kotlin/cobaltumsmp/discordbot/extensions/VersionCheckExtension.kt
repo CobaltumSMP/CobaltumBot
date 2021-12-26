@@ -1,17 +1,14 @@
 package cobaltumsmp.discordbot.extensions
 
-import cobaltumsmp.discordbot.ROLE_ID_MOD
+import cobaltumsmp.discordbot.isModerator
 import cobaltumsmp.discordbot.multipleSnowflakes
 import com.google.gson.JsonParseException
-import com.kotlindiscord.kord.extensions.checks.hasPermission
-import com.kotlindiscord.kord.extensions.checks.hasRole
 import com.kotlindiscord.kord.extensions.extensions.Extension
 import com.kotlindiscord.kord.extensions.extensions.chatCommand
 import com.kotlindiscord.kord.extensions.extensions.event
 import com.kotlindiscord.kord.extensions.utils.envOrNull
 import com.kotlindiscord.kord.extensions.utils.respond
 import com.kotlindiscord.kord.extensions.utils.scheduling.Scheduler
-import dev.kord.common.entity.Permission
 import dev.kord.core.entity.channel.TextChannel
 import dev.kord.core.event.gateway.ReadyEvent
 import io.ktor.client.HttpClient
@@ -92,7 +89,7 @@ internal class VersionCheckExtension : Extension() {
             name = "versioncheck"
             description = "Execute a version check"
 
-            check { ROLE_ID_MOD?.let { hasRole(ROLE_ID_MOD) } ?: hasPermission(Permission.Administrator) }
+            check { isModerator() }
 
             action {
                 LOGGER.debug {
