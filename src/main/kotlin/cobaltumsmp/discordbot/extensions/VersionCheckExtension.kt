@@ -11,6 +11,7 @@ import com.kotlindiscord.kord.extensions.utils.respond
 import com.kotlindiscord.kord.extensions.utils.scheduling.Scheduler
 import dev.kord.core.entity.channel.TextChannel
 import dev.kord.core.event.gateway.ReadyEvent
+import dev.kord.rest.builder.message.create.embed
 import io.ktor.client.HttpClient
 import io.ktor.client.call.receive
 import io.ktor.client.features.json.JsonFeature
@@ -103,13 +104,17 @@ internal class VersionCheckExtension : Extension() {
                     if (!checked) {
                         message.respond("A version check was already running")
                     } else {
-                        message.respond(
-                            "Version check task ran successfully.\n" +
-                                    "Minecraft | Latest version: ${getLatestMinecraftVersion().id}\n" +
-                                    "Minecraft | Total versions: ${mcVersions.size}\n" +
-                                    "Jira      | Latest version: ${getLatestJiraVersion().name}\n" +
-                                    "Jira      | Total versions: ${jiraVersions.size}"
-                        )
+                        message.respond {
+                            embed {
+                                title = "Version check ran successfully"
+                                description = """
+                                    **Minecraft** | Latest version: ${getLatestMinecraftVersion().id}
+                                    **Minecraft** | Total versions: ${mcVersions.size}
+                                    **Jira** | Latest version: ${getLatestJiraVersion().name}
+                                    **Jira** | Total versions: ${jiraVersions.size}
+                                """.trimIndent()
+                            }
+                        }
                     }
                 } catch (e: Exception) {
                     LOGGER.error(e) { "There was an error in a manually run version check" }
