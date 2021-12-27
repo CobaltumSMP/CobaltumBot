@@ -1,5 +1,7 @@
 package cobaltumsmp.discordbot
 
+import cobaltumsmp.discordbot.extensions.LoggingExtension
+import cobaltumsmp.discordbot.extensions.ModerationExtension
 import cobaltumsmp.discordbot.extensions.UtilsExtension
 import cobaltumsmp.discordbot.extensions.VersionCheckExtension
 import cobaltumsmp.discordbot.extensions.ticketsystem.TicketSystemExtension
@@ -35,6 +37,8 @@ internal suspend fun main() {
         extensions {
             add(::UtilsExtension)
             add(::VersionCheckExtension)
+            add(::LoggingExtension)
+            add(::ModerationExtension)
 
             add(::TicketSystemExtension)
         }
