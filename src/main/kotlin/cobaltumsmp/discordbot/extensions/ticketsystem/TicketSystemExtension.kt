@@ -55,6 +55,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
+import kotlinx.datetime.toInstant
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.Query
 import org.jetbrains.exposed.sql.ResultRow
@@ -108,8 +109,8 @@ class TicketSystemExtension : Extension() {
     val ticketConfigIds = mutableListOf<Int>()
 
     // Tickets cache
-    private val ticketChannelIds = mutableMapOf<Long, Int>()
-    private val ticketOwners = mutableMapOf<Int, Long>()
+    private val ticketChannelIds = mutableMapOf<ULong, Int>()
+    private val ticketOwners = mutableMapOf<Int, ULong>()
     private val ticketsPendingClose = mutableMapOf<Int, Instant>()
 
     @Suppress("TooGenericExceptionCaught")
@@ -145,7 +146,7 @@ class TicketSystemExtension : Extension() {
         event<MessageCreateEvent> {
             check { isNotBot() }
             check {
-                val channelId = channelIdFor(event)!!.toLong()
+                val channelId = channelIdFor(event)!!
                 if (channelId in ticketChannelIds) {
                     val ticketId = ticketChannelIds[channelId]!!
                     passIf(ticketId in ticketsPendingClose)
@@ -155,9 +156,9 @@ class TicketSystemExtension : Extension() {
             }
 
             action {
-                val channelId = channelIdFor(event)!!.toLong()
+                val channelId = channelIdFor(event)!!
                 val ticketId = ticketChannelIds[channelId]!!
-                val userId = userFor(event)!!.id.value.toLong()
+                val userId = userFor(event)!!.id.value
 
                 // For some reason the check above doesn't work properly, so we check it again
                 if (ticketId !in ticketsPendingClose || ticketId !in closeTicketTasks) {
@@ -174,7 +175,7 @@ class TicketSystemExtension : Extension() {
                 val ownerId = ticket!![Tickets.ownerId]
                 val extraUserList = ticket!![Tickets.extraUsers]
                 val extraUsers = if (extraUserList.isNotBlank()) {
-                    extraUserList.split(",").map { it.toLong() }
+                    extraUserList.split(",").map { it.toULong() }
                 } else {
                     emptyList()
                 }
@@ -534,14 +535,14 @@ class TicketSystemExtension : Extension() {
                 val currentOwnerId = ticket[Tickets.ownerId]
                 val extraUserList = ticket[Tickets.extraUsers]
                 val extraUsers = if (extraUserList.isNotBlank()) {
-                    extraUserList.split(",").map { it.toLong() }
+                    extraUserList.split(",").map { it.toULong() }
                 } else {
                     emptyList()
                 }
 
                 // Check if the user is in the ticket
                 val user = arguments.user
-                val userId = user.id.value.toLong()
+                val userId = user.id.value
                 if (userId !in extraUsers) {
                     message.respond {
                         content =
@@ -555,7 +556,7 @@ class TicketSystemExtension : Extension() {
                 // Ticket owners don't have extra discord permissions, so we don't need to update them
 
                 // Update the ticket data
-                val newExtraUsers = mutableListOf<Long>()
+                val newExtraUsers = mutableListOf<ULong>()
                 newExtraUsers.addAll(extraUsers.filter { it != userId })
                 newExtraUsers.add(currentOwnerId)
                 val newExtraUserList = newExtraUsers.joinToString(",")
@@ -717,8 +718,8 @@ class TicketSystemExtension : Extension() {
 
     @Suppress("TooGenericExceptionCaught")
     private suspend fun createConfig(message: Message, arguments: SetupTicketsArguments) {
-        val categoryId = arguments.ticketCategory.id.value.toLong()
-        val closedCategoryId = arguments.closedTicketCategory.id.value.toLong()
+        val categoryId = arguments.ticketCategory.id.value
+        val closedCategoryId = arguments.closedTicketCategory.id.value
 
         val guild = mainGuild(kord)!!
         val category = guild.getChannel(Snowflake(categoryId)) as Category
@@ -739,8 +740,8 @@ class TicketSystemExtension : Extension() {
             }
         }
 
-        val msgId = msg.id.value.toLong()
-        val msgChannelId = msg.channelId.value.toLong()
+        val msgId = msg.id.value
+        val msgChannelId = msg.channelId.value
 
         val rolesStr = arguments.roles.joinToString(",") { it.id.value.toString() }
         val configName = arguments.name ?: ""
@@ -859,16 +860,17 @@ class TicketSystemExtension : Extension() {
     private suspend fun createTicket(owner: User, configId: Int, context: PublicInteractionContext) {
         var config: ResultRow? = null
         val userOpenTickets: MutableList<ResultRow> = mutableListOf()
-        var lastTicketCreateTime: Long = -1L
-        val userId = owner.id.value.toLong()
+        var lastTicketCreateTime: Instant = Instant.DISTANT_PAST
+        val userId = owner.id.value
 
         transaction {
             TicketConfigs.select { TicketConfigs.id eq configId }.forEach {
                 config = it
             }
             Tickets.select { Tickets.ownerId eq userId and (Tickets.closed eq false) }.forEach(userOpenTickets::add)
-            lastTicketCreateTime = Tickets.select { Tickets.ownerId eq userId }.maxByOrNull { it[Tickets.createTime] }
-                ?.let { it[Tickets.createTime] } ?: -1L
+            lastTicketCreateTime = Tickets.select { Tickets.ownerId eq userId }
+                .map { it[Tickets.createTime].toInstant() }
+                .maxByOrNull { it } ?: Instant.DISTANT_PAST
         }
 
         if (userOpenTickets.size >= MAX_OPEN_TICKETS_PER_USER) {
@@ -882,8 +884,9 @@ class TicketSystemExtension : Extension() {
             return
         }
 
-        val time = System.currentTimeMillis()
-        if (lastTicketCreateTime != -1L && time - lastTicketCreateTime <= MIN_TICKET_CREATE_DELAY) {
+        val time = Clock.System.now()
+        val timeDelta = time - lastTicketCreateTime
+        if (lastTicketCreateTime != Instant.DISTANT_PAST && timeDelta.inWholeSeconds <= MIN_TICKET_CREATE_DELAY) {
             LOGGER.debug {
                 "User ${owner.username}#${owner.discriminator} ($userId) " +
                         "has created a ticket in the last $MIN_TICKET_CREATE_DELAY_MINUTES minutes"
@@ -904,7 +907,7 @@ class TicketSystemExtension : Extension() {
         val category = guild.getChannel(Snowflake(categoryId)) as Category
 
         val channel = category.createTextChannel("$baseName-${id.toString().padStart(4, '0')}")
-        val chnlId = channel.id.value.toLong()
+        val chnlId = channel.id.value
 
         // Insert to database
         var globalTicketId: Int = -1
@@ -912,7 +915,7 @@ class TicketSystemExtension : Extension() {
             globalTicketId = Tickets.insertAndGetId {
                 it[ticketId] = id
                 it[channelId] = chnlId
-                it[createTime] = time
+                it[createTime] = time.toString()
                 it[ownerId] = userId
                 it[ticketConfigId] = configId
             }.value
@@ -922,7 +925,7 @@ class TicketSystemExtension : Extension() {
         }
 
         // Update cache
-        ticketChannelIds[channel.id.value.toLong()] = globalTicketId
+        ticketChannelIds[channel.id.value] = globalTicketId
         ticketOwners[globalTicketId] = userId
 
         val everyoneRole = guild.getEveryoneRole()
@@ -958,7 +961,7 @@ class TicketSystemExtension : Extension() {
             }
         }
         botMsg.setupTicketButtons(globalTicketId)
-        val msgId = botMsg.id.value.toLong()
+        val msgId = botMsg.id.value
 
         // Add bot message id to the ticket in the database
         transaction {
@@ -1184,7 +1187,7 @@ class TicketSystemExtension : Extension() {
             return result!!
         } else {
             // Get info from ticket corresponding to channel
-            val channelId = channel.id.value.toLong()
+            val channelId = channel.id.value
             var ticket: ResultRow? = null
             transaction {
                 ticket = Tickets.select { Tickets.channelId eq channelId }.firstOrNull()
@@ -1203,12 +1206,12 @@ class TicketSystemExtension : Extension() {
         }
 
         // Moderators can close tickets from anywhere
-        val channelId = channelIdFor(event)!!.toLong()
+        val channelId = channelIdFor(event)!!
         if (channelId !in ticketChannelIds.keys) {
             isModerator()
         } else {
             // Only ticket owners can close tickets, from its channel
-            val userId = userFor(event)!!.id.value.toLong()
+            val userId = userFor(event)!!.id.value
             val globalTicketId = ticketChannelIds[channelId]!!
             if (ticketOwners[globalTicketId] != userId) {
                 fail("You must be owner of the ticket to close it")

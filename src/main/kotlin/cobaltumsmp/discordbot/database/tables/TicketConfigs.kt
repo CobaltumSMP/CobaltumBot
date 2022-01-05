@@ -2,21 +2,22 @@ package cobaltumsmp.discordbot.database.tables
 
 import org.jetbrains.exposed.dao.id.IntIdTable
 
+@OptIn(ExperimentalUnsignedTypes::class)
 object TicketConfigs : IntIdTable() {
     const val NAME_LENGTH = 64
     const val ROLES_LENGTH = 255
 
     // The ID of the category which open ticket channels belong to
-    val ticketCategoryId = long("ticket_category_id")
+    val ticketCategoryId = ulong("ticket_category_id")
 
     // The ID of the category which closed ticket channels belong to
-    val closedTicketCategoryId = long("closed_ticket_category_id")
+    val closedTicketCategoryId = ulong("closed_ticket_category_id")
 
     // The ID of the message with the button to open a ticket
-    val messageId = long("message_id")
+    val messageId = ulong("message_id")
 
     // The ID of the channel with the message with the button to open a ticket
-    val messageChannelId = long("message_channel_id")
+    val messageChannelId = ulong("message_channel_id")
 
     // A list of role IDs which have access to all tickets in this ticket config, separated by a comma
     val roles = varchar("roles", ROLES_LENGTH)

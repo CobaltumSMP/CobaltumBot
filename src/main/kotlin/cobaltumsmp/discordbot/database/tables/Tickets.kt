@@ -2,6 +2,7 @@ package cobaltumsmp.discordbot.database.tables
 
 import org.jetbrains.exposed.dao.id.IntIdTable
 
+@OptIn(ExperimentalUnsignedTypes::class)
 object Tickets : IntIdTable(columnName = "global_ticket_id") {
     const val EXTRA_USERS_LENGTH = 255
     const val BASE_NAME_LENGTH = 15
@@ -11,10 +12,10 @@ object Tickets : IntIdTable(columnName = "global_ticket_id") {
     val ticketId = integer("ticketId")
 
     // The ID/Snowflake of the channel for this ticket
-    val channelId = long("channel_id")
+    val channelId = ulong("channel_id")
 
     // The time the ticket was created
-    val createTime = long("create_time")
+    val createTime = varchar("create_time", TIME_LENGTH)
 
     // Whether this ticket is closed
     val closed = bool("closed").default(false)
@@ -23,16 +24,16 @@ object Tickets : IntIdTable(columnName = "global_ticket_id") {
     val closeTime = varchar("close_time", TIME_LENGTH).nullable()
 
     // The ID/Snowflake of the base message sent by the bot
-    val botMsgId = long("bot_msg_id").nullable()
+    val botMsgId = ulong("bot_msg_id").nullable()
 
     // The ID/Snowflake of the owner of this ticket
-    val ownerId = long("owner_id")
+    val ownerId = ulong("owner_id")
 
     // A list of user IDs/Snowflakes that have special access to this ticket
     val extraUsers = varchar("extra_users", EXTRA_USERS_LENGTH).default("")
 
     // The ID/Snowflake of the user that is currently assigned to this ticket
-    val assignedUserId = long("assigned_user_id").nullable()
+    val assignedUserId = ulong("assigned_user_id").nullable()
 
     // The ID of the ticket config this ticket belongs to
     val ticketConfigId = reference("ticket_config_id", TicketConfigs)
