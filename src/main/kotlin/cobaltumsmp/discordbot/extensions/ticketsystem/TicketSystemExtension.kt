@@ -7,7 +7,6 @@ package cobaltumsmp.discordbot.extensions.ticketsystem
 import cobaltumsmp.discordbot.database.Database
 import cobaltumsmp.discordbot.database.tables.TicketConfigs
 import cobaltumsmp.discordbot.database.tables.Tickets
-import cobaltumsmp.discordbot.database.tables.insertAndGetGlobalId
 import cobaltumsmp.discordbot.inMainGuild
 import cobaltumsmp.discordbot.isAdministrator
 import cobaltumsmp.discordbot.isModerator
@@ -168,7 +167,7 @@ class TicketSystemExtension : Extension() {
                 // Get the ticket
                 var ticket: ResultRow? = null
                 transaction {
-                    ticket = Tickets.select { Tickets.globalTicketId eq ticketId }.first()
+                    ticket = Tickets.select { Tickets.id eq ticketId }.first()
                 }
 
                 // Get the ticket info
@@ -191,7 +190,7 @@ class TicketSystemExtension : Extension() {
 
                     // Update database
                     transaction {
-                        Tickets.update({ Tickets.globalTicketId eq ticketId }) {
+                        Tickets.update({ Tickets.id eq ticketId }) {
                             it[closeTime] = null
                         }
                     }
@@ -414,7 +413,7 @@ class TicketSystemExtension : Extension() {
                 val ticket = getTicket(arguments.ticketId, arguments.isGlobalId, arguments.configId)
 
                 // Get the info from the ticket
-                val ticketId = ticket[Tickets.globalTicketId]
+                val ticketId = ticket[Tickets.id]
                 val channelId = ticket[Tickets.channelId]
                 val currentExtraUserList = ticket[Tickets.extraUsers]
                 val currentExtraUsers = if (currentExtraUserList.isNotBlank()) {
@@ -449,7 +448,7 @@ class TicketSystemExtension : Extension() {
 
                 // Update the ticket data
                 transaction {
-                    Tickets.update({ Tickets.globalTicketId eq ticketId }) {
+                    Tickets.update({ Tickets.id eq ticketId }) {
                         it[Tickets.extraUsers] = extraUserList
                     }
                 }
@@ -480,7 +479,7 @@ class TicketSystemExtension : Extension() {
                 val ticket = getTicket(arguments.ticketId, arguments.isGlobalId, arguments.configId)
 
                 // Get the info from the ticket
-                val ticketId = ticket[Tickets.globalTicketId]
+                val ticketId = ticket[Tickets.id]
                 val channelId = ticket[Tickets.channelId]
                 val currentExtraUserList = ticket[Tickets.extraUsers]
                 val currentExtraUsers = if (currentExtraUserList.isNotBlank()) {
@@ -506,7 +505,7 @@ class TicketSystemExtension : Extension() {
 
                 // Update the ticket data
                 transaction {
-                    Tickets.update({ Tickets.globalTicketId eq ticketId }) {
+                    Tickets.update({ Tickets.id eq ticketId }) {
                         it[Tickets.extraUsers] = extraUserList
                     }
                 }
@@ -531,7 +530,7 @@ class TicketSystemExtension : Extension() {
                 val ticket = getTicket(arguments.ticketId, arguments.isGlobalId, arguments.configId)
 
                 // Get the info from the ticket
-                val ticketId = ticket[Tickets.globalTicketId]
+                val ticketId = ticket[Tickets.id].value
                 val currentOwnerId = ticket[Tickets.ownerId]
                 val extraUserList = ticket[Tickets.extraUsers]
                 val extraUsers = if (extraUserList.isNotBlank()) {
@@ -561,7 +560,7 @@ class TicketSystemExtension : Extension() {
                 newExtraUsers.add(currentOwnerId)
                 val newExtraUserList = newExtraUsers.joinToString(",")
                 transaction {
-                    Tickets.update({ Tickets.globalTicketId eq ticketId }) {
+                    Tickets.update({ Tickets.id eq ticketId }) {
                         it[Tickets.extraUsers] = newExtraUserList
                         it[ownerId] = userId
                     }
@@ -588,7 +587,7 @@ class TicketSystemExtension : Extension() {
                 val ticket = getTicket(arguments.ticketId, arguments.isGlobalId, arguments.configId)
 
                 // Get the info from the ticket
-                val ticketId = ticket[Tickets.globalTicketId]
+                val ticketId = ticket[Tickets.id].value
                 val channelId = ticket[Tickets.channelId]
 
                 if (arguments.delay != null) {
@@ -613,7 +612,7 @@ class TicketSystemExtension : Extension() {
 
                     // Update the ticket data
                     transaction {
-                        Tickets.update({ Tickets.globalTicketId eq ticketId }) {
+                        Tickets.update({ Tickets.id eq ticketId }) {
                             it[Tickets.closeTime] = closeTime.toString()
                         }
                     }
@@ -683,12 +682,12 @@ class TicketSystemExtension : Extension() {
         ticketsPendingClose.clear()
         ticketsPendingClose.putAll(Tickets.select { Tickets.closeTime.isNotNull() and (Tickets.closed eq false) }
             .filter { Instant.parse(it[Tickets.closeTime]!!).toEpochMilliseconds() >= now }
-            .associate { it[Tickets.globalTicketId] to Instant.parse(it[Tickets.closeTime]!!) })
+            .associate { it[Tickets.id].value to Instant.parse(it[Tickets.closeTime]!!) })
 
         ticketChannelIds.clear()
-        ticketChannelIds.putAll(allTickets.associate { it[Tickets.channelId] to it[Tickets.globalTicketId] })
+        ticketChannelIds.putAll(allTickets.associate { it[Tickets.channelId] to it[Tickets.id].value })
         ticketOwners.clear()
-        ticketOwners.putAll(allTickets.associate { it[Tickets.globalTicketId] to it[Tickets.ownerId] })
+        ticketOwners.putAll(allTickets.associate { it[Tickets.id].value to it[Tickets.ownerId] })
     }
 
     private suspend fun setupInteractions() {
@@ -712,7 +711,7 @@ class TicketSystemExtension : Extension() {
             val channel = guild.getChannel(Snowflake(it[Tickets.channelId])) as TextChannel
             val message = channel.getMessageOrNull(Snowflake(it[Tickets.botMsgId]!!))!!
 
-            message.setupTicketButtons(it[Tickets.globalTicketId])
+            message.setupTicketButtons(it[Tickets.id].value)
         }
     }
 
@@ -910,13 +909,13 @@ class TicketSystemExtension : Extension() {
         // Insert to database
         var globalTicketId: Int = -1
         transaction {
-            globalTicketId = Tickets.insertAndGetGlobalId {
+            globalTicketId = Tickets.insertAndGetId {
                 it[ticketId] = id
                 it[channelId] = chnlId
                 it[createTime] = time
                 it[ownerId] = userId
                 it[ticketConfigId] = configId
-            }
+            }.value
             TicketConfigs.update({ TicketConfigs.id eq configId }) {
                 it[ticketCount] = id + 1
             }
@@ -963,7 +962,7 @@ class TicketSystemExtension : Extension() {
 
         // Add bot message id to the ticket in the database
         transaction {
-            Tickets.update({ Tickets.ownerId eq userId and (Tickets.globalTicketId eq globalTicketId) }) {
+            Tickets.update({ Tickets.ownerId eq userId and (Tickets.id eq globalTicketId) }) {
                 it[botMsgId] = msgId
             }
         }
@@ -980,7 +979,7 @@ class TicketSystemExtension : Extension() {
         // Get the ticket
         var ticket: ResultRow? = null
         transaction {
-            ticket = Tickets.select { Tickets.globalTicketId eq globalTicketId }.first()
+            ticket = Tickets.select { Tickets.id eq globalTicketId }.first()
         }
 
         // Get ticket info
@@ -1056,7 +1055,7 @@ class TicketSystemExtension : Extension() {
 
         // Update database
         transaction {
-            Tickets.update({ Tickets.globalTicketId eq globalTicketId }) {
+            Tickets.update({ Tickets.id eq globalTicketId }) {
                 it[Tickets.closeTime] = closeTime.toString()
                 it[closed] = true
             }
@@ -1154,7 +1153,7 @@ class TicketSystemExtension : Extension() {
                 val query: Query
                 if (isGlobalId != null) {
                     query = if (isGlobalId == true) {
-                        Tickets.select { Tickets.globalTicketId eq ticketId }
+                        Tickets.select { Tickets.id eq ticketId }
                     } else if (configId != null) {
                         Tickets.select {
                             Tickets.ticketConfigId eq configId and (Tickets.ticketId eq ticketId)

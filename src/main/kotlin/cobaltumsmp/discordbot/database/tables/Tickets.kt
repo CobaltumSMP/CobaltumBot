@@ -1,16 +1,11 @@
 package cobaltumsmp.discordbot.database.tables
 
-import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.statements.InsertStatement
-import org.jetbrains.exposed.sql.transactions.TransactionManager
+import org.jetbrains.exposed.dao.id.IntIdTable
 
-object Tickets : Table() {
+object Tickets : IntIdTable(columnName = "global_ticket_id") {
     const val EXTRA_USERS_LENGTH = 255
     const val BASE_NAME_LENGTH = 15
-    const val TIME_LENGTH = 30
-
-    // The ID of the ticket globally
-    val globalTicketId = integer("global_ticket_id").autoIncrement().uniqueIndex()
+    private const val TIME_LENGTH = 30
 
     // The ID of the ticket within its config
     val ticketId = integer("ticketId")
@@ -41,11 +36,4 @@ object Tickets : Table() {
 
     // The ID of the ticket config this ticket belongs to
     val ticketConfigId = reference("ticket_config_id", TicketConfigs)
-    override val primaryKey = PrimaryKey(globalTicketId, name = "PK_global_ticket_id")
-}
-
-fun Tickets.insertAndGetGlobalId(body: Tickets.(InsertStatement<Number>) -> Unit) = InsertStatement<Number>(this).run {
-    body(this)
-    execute(TransactionManager.current())
-    get(globalTicketId)
 }
