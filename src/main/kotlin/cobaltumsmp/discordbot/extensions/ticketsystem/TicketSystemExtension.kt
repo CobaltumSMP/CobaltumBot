@@ -4,6 +4,10 @@
 
 package cobaltumsmp.discordbot.extensions.ticketsystem
 
+import cobaltumsmp.discordbot.database.Database
+import cobaltumsmp.discordbot.database.tables.TicketConfigs
+import cobaltumsmp.discordbot.database.tables.Tickets
+import cobaltumsmp.discordbot.database.tables.insertAndGetGlobalId
 import cobaltumsmp.discordbot.inMainGuild
 import cobaltumsmp.discordbot.isAdministrator
 import cobaltumsmp.discordbot.isModerator
@@ -28,7 +32,6 @@ import com.kotlindiscord.kord.extensions.extensions.chatCommand
 import com.kotlindiscord.kord.extensions.extensions.event
 import com.kotlindiscord.kord.extensions.types.PublicInteractionContext
 import com.kotlindiscord.kord.extensions.types.respondEphemeral
-import com.kotlindiscord.kord.extensions.utils.envOrNull
 import com.kotlindiscord.kord.extensions.utils.respond
 import com.kotlindiscord.kord.extensions.utils.scheduling.Scheduler
 import com.kotlindiscord.kord.extensions.utils.scheduling.Task
@@ -54,7 +57,6 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import mu.KotlinLogging
-import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.Query
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -65,15 +67,14 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import java.net.URI
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 
-internal const val MAX_TICKET_CONFIG_ROLES = TICKET_CONFIG_ROLES_LENGTH / 20
+internal const val MAX_TICKET_CONFIG_ROLES = TicketConfigs.ROLES_LENGTH / 20
 internal const val MIN_TICKET_CREATE_DELAY_MINUTES = 0.5
 internal const val MIN_TICKET_CREATE_DELAY = MIN_TICKET_CREATE_DELAY_MINUTES * 60 * 1000L
 internal const val MAX_OPEN_TICKETS_PER_USER = 3
-internal const val MAX_EXTRA_USERS_PER_TICKET = TICKET_EXTRA_USERS_LENGTH / 20
+internal const val MAX_EXTRA_USERS_PER_TICKET = Tickets.EXTRA_USERS_LENGTH / 20
 internal const val MIN_SCHEDULE_TICKET_CLOSE_DELAY = 30
 
 private val EMOTE_TICKET = ReactionEmoji.Unicode("🎫") // :ticket:
@@ -96,12 +97,6 @@ private val CLOSED_TICKET_CATEGORY_EVERYONE_DENIED_PERMISSIONS =
 private val TICKET_PER_USER_ALLOWED_PERMISSIONS =
     Permissions(Permission.ViewChannel) // Only this permission is denied for @everyone
 
-private val DATABASE_URL = envOrNull("DATABASE_URL") // Heroku Postgres database URL
-private val DB_URL = envOrNull("DB_URL")
-private val DB_USER = envOrNull("DB_USER")
-private val DB_PASS = envOrNull("DB_PASS")
-private val JDBC_DRIVER = envOrNull("JDBC_DRIVER")
-
 private val LOGGER = KotlinLogging.logger("cobaltumsmp.discordbot.extensions.ticketsystem")
 
 class TicketSystemExtension : Extension() {
@@ -122,28 +117,7 @@ class TicketSystemExtension : Extension() {
     override suspend fun setup() {
         LOGGER.info { "Setting up Ticket System" }
 
-        val url: String
-        val username: String
-        val password: String
-        if (DATABASE_URL != null) {
-            val uri = URI(DATABASE_URL)
-
-            username = uri.userInfo.split(":")[0]
-            password = uri.userInfo.split(":")[1]
-            url = "jdbc:postgresql://${uri.host}:${uri.port}${uri.path}"
-        } else {
-            url = DB_URL!!
-            username = DB_USER!!
-            password = DB_PASS!!
-        }
-
-        LOGGER.info { "Connecting to database $url" + (JDBC_DRIVER?.let { " with driver $it" } ?: "") }
-
-        if (JDBC_DRIVER != null) {
-            Database.connect(url, user = username, password = password, driver = JDBC_DRIVER)
-        } else {
-            Database.connect(url, user = username, password = password)
-        }
+        Database.connect()
 
         // Try to set up the database and retrieve the initial data
         var success = false

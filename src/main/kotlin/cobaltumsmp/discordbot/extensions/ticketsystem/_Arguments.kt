@@ -2,6 +2,8 @@ package cobaltumsmp.discordbot.extensions.ticketsystem
 
 import cobaltumsmp.discordbot.GUILD_MAIN
 import cobaltumsmp.discordbot.checkHasPermissionsInChannel
+import cobaltumsmp.discordbot.database.tables.TicketConfigs
+import cobaltumsmp.discordbot.database.tables.Tickets
 import com.kotlindiscord.kord.extensions.DiscordRelayedException
 import com.kotlindiscord.kord.extensions.commands.Arguments
 import com.kotlindiscord.kord.extensions.commands.converters.impl.channel
@@ -72,14 +74,14 @@ class SetupTicketsArguments : Arguments() {
     }
 
     val name by optionalString("name", "The name of the ticket config") { _, value ->
-        if (value != null && value.length > TICKET_CONFIG_NAME_LENGTH) {
-            throw DiscordRelayedException("Name must be less than $TICKET_CONFIG_NAME_LENGTH characters")
+        if (value != null && value.length > TicketConfigs.NAME_LENGTH) {
+            throw DiscordRelayedException("Name must be less than ${TicketConfigs.NAME_LENGTH} characters")
         }
     }
 
     val ticketsBaseName by optionalString("ticketsBaseName", "The base name of the ticket channels") { _, value ->
-        if (value != null && value.length > TICKET_BASE_NAME_LENGTH) {
-            throw DiscordRelayedException("Name must be less than $TICKET_BASE_NAME_LENGTH characters")
+        if (value != null && value.length > Tickets.BASE_NAME_LENGTH) {
+            throw DiscordRelayedException("Name must be less than ${Tickets.BASE_NAME_LENGTH} characters")
         }
     }
 

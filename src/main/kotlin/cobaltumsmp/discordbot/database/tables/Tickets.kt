@@ -1,17 +1,14 @@
-package cobaltumsmp.discordbot.extensions.ticketsystem
+package cobaltumsmp.discordbot.database.tables
 
-import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.statements.InsertStatement
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 
-internal const val TICKET_CONFIG_NAME_LENGTH = 64
-internal const val TICKET_CONFIG_ROLES_LENGTH = 255
-internal const val TICKET_EXTRA_USERS_LENGTH = 255
-internal const val TICKET_BASE_NAME_LENGTH = 15
-internal const val TIME_LENGTH = 30
-
 object Tickets : Table() {
+    const val EXTRA_USERS_LENGTH = 255
+    const val BASE_NAME_LENGTH = 15
+    const val TIME_LENGTH = 30
+
     // The ID of the ticket globally
     val globalTicketId = integer("global_ticket_id").autoIncrement().uniqueIndex()
 
@@ -37,7 +34,7 @@ object Tickets : Table() {
     val ownerId = long("owner_id")
 
     // A list of user IDs/Snowflakes that have special access to this ticket
-    val extraUsers = varchar("extra_users", TICKET_EXTRA_USERS_LENGTH).default("")
+    val extraUsers = varchar("extra_users", EXTRA_USERS_LENGTH).default("")
 
     // The ID/Snowflake of the user that is currently assigned to this ticket
     val assignedUserId = long("assigned_user_id").nullable()
@@ -51,31 +48,4 @@ fun Tickets.insertAndGetGlobalId(body: Tickets.(InsertStatement<Number>) -> Unit
     body(this)
     execute(TransactionManager.current())
     get(globalTicketId)
-}
-
-object TicketConfigs : IntIdTable() {
-
-    // The ID of the category which open ticket channels belong to
-    val ticketCategoryId = long("ticket_category_id")
-
-    // The ID of the category which closed ticket channels belong to
-    val closedTicketCategoryId = long("closed_ticket_category_id")
-
-    // The ID of the message with the button to open a ticket
-    val messageId = long("message_id")
-
-    // The ID of the channel with the message with the button to open a ticket
-    val messageChannelId = long("message_channel_id")
-
-    // A list of role IDs which have access to all tickets in this ticket config, separated by a comma
-    val roles = varchar("roles", TICKET_CONFIG_ROLES_LENGTH)
-
-    // How many tickets have been opened in this ticket config
-    val ticketCount = integer("ticket_count").default(0)
-
-    // The base name of the ticket channels
-    val ticketsBaseName = varchar("tickets_base_name", TICKET_BASE_NAME_LENGTH).default("ticket")
-
-    // The name of the ticket config
-    val name = varchar("name", TICKET_CONFIG_NAME_LENGTH).default("")
 }
