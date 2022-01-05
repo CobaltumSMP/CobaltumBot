@@ -5,6 +5,8 @@
 package cobaltumsmp.discordbot.extensions.ticketsystem
 
 import cobaltumsmp.discordbot.database.Database
+import cobaltumsmp.discordbot.database.entities.Ticket
+import cobaltumsmp.discordbot.database.entities.TicketConfig
 import cobaltumsmp.discordbot.database.tables.TicketConfigs
 import cobaltumsmp.discordbot.database.tables.Tickets
 import cobaltumsmp.discordbot.inMainGuild
@@ -55,26 +57,16 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
-import kotlinx.datetime.toInstant
 import mu.KotlinLogging
-import org.jetbrains.exposed.sql.Query
-import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insertAndGetId
-import org.jetbrains.exposed.sql.select
-import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
+import java.sql.SQLException
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 
-internal const val MAX_TICKET_CONFIG_ROLES = TicketConfigs.ROLES_LENGTH / 20
 internal const val MIN_TICKET_CREATE_DELAY_MINUTES = 0.5
 internal const val MIN_TICKET_CREATE_DELAY = MIN_TICKET_CREATE_DELAY_MINUTES * 60 * 1000L
 internal const val MAX_OPEN_TICKETS_PER_USER = 3
-internal const val MAX_EXTRA_USERS_PER_TICKET = Tickets.EXTRA_USERS_LENGTH / 20
 internal const val MIN_SCHEDULE_TICKET_CLOSE_DELAY = 30
 
 private val EMOTE_TICKET = ReactionEmoji.Unicode("🎫") // :ticket:
@@ -103,15 +95,16 @@ class TicketSystemExtension : Extension() {
     override val name: String = "Ticket System"
 
     private val scheduler: Scheduler = Scheduler()
-    private val closeTicketTasks = mutableMapOf<Int, Task>()
+    private val closeTicketTasks = mutableMapOf<Ticket, Task>()
 
     // Ticket configs cache
-    val ticketConfigIds = mutableListOf<Int>()
+    private val ticketConfigs = mutableListOf<TicketConfig>()
 
     // Tickets cache
-    private val ticketChannelIds = mutableMapOf<ULong, Int>()
-    private val ticketOwners = mutableMapOf<Int, ULong>()
-    private val ticketsPendingClose = mutableMapOf<Int, Instant>()
+    private val tickets = mutableListOf<Ticket>()
+    private val ticketsByChannelId = mutableMapOf<Snowflake, Ticket>()
+    private val ticketOwnerIds = mutableMapOf<Ticket, Snowflake>()
+    private val ticketsWaitingClose = mutableMapOf<Ticket, Instant>()
 
     @Suppress("TooGenericExceptionCaught")
     override suspend fun setup() {
@@ -146,54 +139,42 @@ class TicketSystemExtension : Extension() {
         event<MessageCreateEvent> {
             check { isNotBot() }
             check {
-                val channelId = channelIdFor(event)!!
-                if (channelId in ticketChannelIds) {
-                    val ticketId = ticketChannelIds[channelId]!!
-                    passIf(ticketId in ticketsPendingClose)
+                val channelId = Snowflake(channelIdFor(event)!!)
+                if (channelId in ticketsByChannelId) {
+                    val ticket = ticketsByChannelId[channelId]!!
+                    passIf(ticket in ticketsWaitingClose)
                 } else {
                     fail()
                 }
             }
 
             action {
-                val channelId = channelIdFor(event)!!
-                val ticketId = ticketChannelIds[channelId]!!
-                val userId = userFor(event)!!.id.value
+                val channelId = Snowflake(channelIdFor(event)!!)
+                val ticket = ticketsByChannelId[channelId]!!
+                val userId = userFor(event)!!.id
 
                 // For some reason the check above doesn't work properly, so we check it again
-                if (ticketId !in ticketsPendingClose || ticketId !in closeTicketTasks) {
+                if (ticket !in ticketsWaitingClose || ticket !in closeTicketTasks) {
                     return@action
                 }
 
-                // Get the ticket
-                var ticket: ResultRow? = null
-                transaction {
-                    ticket = Tickets.select { Tickets.id eq ticketId }.first()
-                }
-
                 // Get the ticket info
-                val ownerId = ticket!![Tickets.ownerId]
-                val extraUserList = ticket!![Tickets.extraUsers]
-                val extraUsers = if (extraUserList.isNotBlank()) {
-                    extraUserList.split(",").map { it.toULong() }
-                } else {
-                    emptyList()
-                }
+                val ownerId = ticket.ownerId
+                val extraUsers = ticket.extraUsers
 
+                // Only messages by the owner or an extra user should cancel closing the ticket
                 if (userId == ownerId || userId in extraUsers) {
                     // Cancel task
-                    val task = closeTicketTasks[ticketId]!!
+                    val task = closeTicketTasks[ticket]!!
                     task.cancel()
 
                     // Remove task and ticket from cache
-                    closeTicketTasks.remove(ticketId)
-                    ticketsPendingClose.remove(ticketId)
+                    closeTicketTasks.remove(ticket)
+                    ticketsWaitingClose.remove(ticket)
 
                     // Update database
                     transaction {
-                        Tickets.update({ Tickets.id eq ticketId }) {
-                            it[closeTime] = null
-                        }
+                        ticket.closeTime = null
                     }
 
                     // Send message
@@ -209,6 +190,7 @@ class TicketSystemExtension : Extension() {
             }
         }
 
+        // region commands
         chatCommand(::SetupTicketsArguments) {
             name = "setuptickets"
             description = "Sets up the ticket system with a new ticket config"
@@ -230,18 +212,13 @@ class TicketSystemExtension : Extension() {
 
             action {
                 val msg = message
-                var configName = ""
-                var tickets = 0
-                transaction {
-                    configName =
-                        TicketConfigs.select { TicketConfigs.id eq arguments.configId }.first()[TicketConfigs.name]
-                    tickets = TicketConfigs.select { TicketConfigs.id eq arguments.configId }.count().toInt()
-                }
+                val config = ticketConfigs.find { it.id.value == arguments.configId }
+                val tickets = config!!.tickets
 
-                val displayName = getTicketConfigDisplayName(configName, arguments.configId)
+                val displayName = config.displayName()
                 val response = msg.respond {
                     content = """
-                        This will delete the ticket config $displayName and $tickets ticket(s).
+                        This will delete the ticket config $displayName and ${tickets.count()} ticket(s).
                         Are you sure you want to do this? Press the button below to confirm.
                     """.trimIndent()
                 }
@@ -273,11 +250,7 @@ class TicketSystemExtension : Extension() {
 
             action {
                 val configs = mutableMapOf<Int, String>()
-                transaction {
-                    TicketConfigs.selectAll().forEach {
-                        configs[it[TicketConfigs.id].value] = it[TicketConfigs.name]
-                    }
-                }
+                configs.putAll(ticketConfigs.associate { it.id.value to it.name })
 
                 val chunked = configs.map { (id, name) ->
                     if (name.isNotBlank()) {
@@ -305,18 +278,17 @@ class TicketSystemExtension : Extension() {
             check { isModerator() }
 
             action {
-                val config = TicketConfigs.select { TicketConfigs.id eq arguments.configId }.first()
-                val categoryId = config[TicketConfigs.ticketCategoryId]
-                val closedCategoryId = config[TicketConfigs.closedTicketCategoryId]
-                val roleList = config[TicketConfigs.roles]
-                val roles = roleList.split(",").map { it.toLong() }
+                val config = ticketConfigs.find { it.id.value == arguments.configId }!!
+                val categoryId = config.ticketCategoryId
+                val closedCategoryId = config.closedTicketCategoryId
+                val roles = config.roles
 
                 val guild = mainGuild(event.kord)!!
-                val category = guild.getChannel(Snowflake(categoryId)) as Category
-                val closedCategory = guild.getChannel(Snowflake(closedCategoryId)) as Category
+                val category = guild.getChannel(categoryId) as Category
+                val closedCategory = guild.getChannel(closedCategoryId) as Category
 
-                setupTicketCategoriesPermissions(category, closedCategory, roles.map { Snowflake(it) })
-                val displayName = getTicketConfigDisplayName(config[TicketConfigs.name], arguments.configId)
+                setupTicketCategoriesPermissions(category, closedCategory, roles)
+                val displayName = config.displayName()
                 message.respond {
                     content = "Permissions for ticket config $displayName have been fixed"
                 }
@@ -331,36 +303,23 @@ class TicketSystemExtension : Extension() {
             check { isModerator() }
 
             action {
-                val ticketChannel: TextChannel
-                val allowedUsers: List<Snowflake>
-
                 // Get the ticket
                 val ticket = getTicket(arguments.ticketId, arguments.isGlobalId, arguments.configId)
+                    ?: return@action // Ticket not found
 
                 // Get the info from the ticket
-                val ticketChannelId = Snowflake(ticket[Tickets.channelId])
-                val closed = ticket[Tickets.closed]
-                val configId = ticket[Tickets.ticketConfigId]
-                val allowedUsersList = mutableListOf<String>()
-                allowedUsersList.add(ticket[Tickets.ownerId].toString())
-                val extraUserList = ticket[Tickets.extraUsers]
-                if (extraUserList.isNotBlank()) {
-                    allowedUsersList.addAll(extraUserList.split(","))
-                }
-
-                // Get the config
-                var config: ResultRow? = null
-                transaction {
-                    config = TicketConfigs.select { TicketConfigs.id eq configId }.first()
-                }
+                val ticketChannelId = ticket.channelId
+                val closed = ticket.closed
+                val config = ticket.config
+                val allowedUsers = mutableListOf<Snowflake>()
+                allowedUsers.add(ticket.ownerId)
+                allowedUsers.addAll(ticket.extraUsers)
 
                 // Get the info from the config
-                val roleList = config!![TicketConfigs.roles]
-                val roles = roleList.split(",").map { Snowflake(it.toLong()) }
+                val roles = config.roles
 
                 val guild = mainGuild(event.kord)!!
-                ticketChannel = guild.getChannel(ticketChannelId) as TextChannel
-                allowedUsers = allowedUsersList.map { Snowflake(it) }
+                val ticketChannel = guild.getChannel(ticketChannelId) as TextChannel
 
                 // Update permissions
                 val everyoneRole = guild.getEveryoneRole()
@@ -412,46 +371,37 @@ class TicketSystemExtension : Extension() {
             action {
                 // Get the ticket
                 val ticket = getTicket(arguments.ticketId, arguments.isGlobalId, arguments.configId)
+                    ?: return@action // Ticket not found
 
                 // Get the info from the ticket
-                val ticketId = ticket[Tickets.id]
-                val channelId = ticket[Tickets.channelId]
-                val currentExtraUserList = ticket[Tickets.extraUsers]
-                val currentExtraUsers = if (currentExtraUserList.isNotBlank()) {
-                    currentExtraUserList.split(",").map { it.toLong() }
-                } else {
-                    emptyList()
-                }
+                val channelId = ticket.channelId
+                val currentExtraUsers = ticket.extraUsers
 
                 // Check the amount of users is allowed
-                val newExtraUsers = arguments.users.map { it.id.value.toLong() }.filter { it !in currentExtraUsers }
+                val newExtraUsers = arguments.users.map { it.id }.filter { it !in currentExtraUsers }
                 val extraUsers = currentExtraUsers + newExtraUsers
-                if (extraUsers.size > MAX_EXTRA_USERS_PER_TICKET) {
+                if (extraUsers.size > Ticket.MAX_EXTRA_USERS) {
                     message.respond {
-                        content = "There can only be a maximum of $MAX_EXTRA_USERS_PER_TICKET extra users in a ticket"
+                        content = "There can only be a maximum of ${Ticket.MAX_EXTRA_USERS} extra users in a ticket"
                     }
                     return@action
                 }
 
-                val extraUserList = extraUsers.joinToString(",")
-
                 // Update the ticket channel
-                val channel = mainGuild(event.kord)!!.getChannel(Snowflake(channelId)) as TextChannel
+                val channel = mainGuild(event.kord)!!.getChannel(channelId) as TextChannel
                 channel.edit {
                     val overwrites = permissionOverwrites ?: mutableSetOf()
                     for (user in newExtraUsers) {
-                        overwrites.add(memberOverwrite(Snowflake(user)) {
+                        overwrites.add(memberOverwrite(user) {
                             allowed = TICKET_PER_USER_ALLOWED_PERMISSIONS
                         })
                     }
                     permissionOverwrites = overwrites
                 }
 
-                // Update the ticket data
+                // Update database
                 transaction {
-                    Tickets.update({ Tickets.id eq ticketId }) {
-                        it[Tickets.extraUsers] = extraUserList
-                    }
+                    ticket.extraUsers = extraUsers
                 }
 
                 // Send notification message
@@ -478,42 +428,35 @@ class TicketSystemExtension : Extension() {
             action {
                 // Get the ticket
                 val ticket = getTicket(arguments.ticketId, arguments.isGlobalId, arguments.configId)
+                    ?: return@action // Ticket not found
 
                 // Get the info from the ticket
-                val ticketId = ticket[Tickets.id]
-                val channelId = ticket[Tickets.channelId]
-                val currentExtraUserList = ticket[Tickets.extraUsers]
-                val currentExtraUsers = if (currentExtraUserList.isNotBlank()) {
-                    currentExtraUserList.split(",").map { it.toLong() }
-                } else {
-                    emptyList()
-                }
+                val channelId = ticket.channelId
+                val currentExtraUsers = ticket.extraUsers
 
                 // Create the list of users to remove
-                val usersToRemove = arguments.users.map { it.id.value.toLong() }.filter { it in currentExtraUsers }
+                val usersToRemove = arguments.users.map { it.id }.filter { it in currentExtraUsers }
                 val extraUsers = currentExtraUsers.filter { it !in usersToRemove }
-                val extraUserList = extraUsers.joinToString(",")
 
                 // Update the ticket channel
-                val channel = mainGuild(event.kord)!!.getChannel(Snowflake(channelId)) as TextChannel
+                val channel = mainGuild(event.kord)!!.getChannel(channelId) as TextChannel
                 channel.edit {
                     val overwrites = permissionOverwrites ?: mutableSetOf()
                     for (user in usersToRemove) {
-                        overwrites.removeIf { it.id.value.toLong() == user }
+                        overwrites.removeIf { it.id == user }
                     }
                     permissionOverwrites = overwrites
                 }
 
-                // Update the ticket data
+                // Update database
                 transaction {
-                    Tickets.update({ Tickets.id eq ticketId }) {
-                        it[Tickets.extraUsers] = extraUserList
-                    }
+                    ticket.extraUsers = extraUsers
                 }
 
                 // Send response
+                val removedUsers = usersToRemove.joinToString(", ") { "<@${it.value}>" }
                 message.respond {
-                    content = "Removed ${usersToRemove.joinToString(", ") { "<@$it>" }} from ticket ${channel.mention}"
+                    content = "Removed $removedUsers from ticket ${channel.mention}"
                     allowedMentions = AllowedMentionsBuilder()
                 }
             }
@@ -529,20 +472,15 @@ class TicketSystemExtension : Extension() {
             action {
                 // Get the ticket
                 val ticket = getTicket(arguments.ticketId, arguments.isGlobalId, arguments.configId)
+                    ?: return@action // Ticket not found
 
                 // Get the info from the ticket
-                val ticketId = ticket[Tickets.id].value
-                val currentOwnerId = ticket[Tickets.ownerId]
-                val extraUserList = ticket[Tickets.extraUsers]
-                val extraUsers = if (extraUserList.isNotBlank()) {
-                    extraUserList.split(",").map { it.toULong() }
-                } else {
-                    emptyList()
-                }
+                val currentOwnerId = ticket.ownerId
+                val extraUsers = ticket.extraUsers
 
                 // Check if the user is in the ticket
                 val user = arguments.user
-                val userId = user.id.value
+                val userId = user.id
                 if (userId !in extraUsers) {
                     message.respond {
                         content =
@@ -555,19 +493,17 @@ class TicketSystemExtension : Extension() {
 
                 // Ticket owners don't have extra discord permissions, so we don't need to update them
 
-                // Update the ticket data
-                val newExtraUsers = mutableListOf<ULong>()
+                val newExtraUsers = mutableListOf<Snowflake>()
                 newExtraUsers.addAll(extraUsers.filter { it != userId })
                 newExtraUsers.add(currentOwnerId)
-                val newExtraUserList = newExtraUsers.joinToString(",")
+
+                // Update database
                 transaction {
-                    Tickets.update({ Tickets.id eq ticketId }) {
-                        it[Tickets.extraUsers] = newExtraUserList
-                        it[ownerId] = userId
-                    }
+                    ticket.extraUsers = newExtraUsers.toList()
+                    ticket.ownerId = userId
                 }
                 // Update cache
-                ticketOwners.replace(ticketId, userId)
+                ticketOwnerIds.replace(ticket, userId)
 
                 // Send response
                 message.respond {
@@ -586,22 +522,22 @@ class TicketSystemExtension : Extension() {
             action {
                 // Get the ticket
                 val ticket = getTicket(arguments.ticketId, arguments.isGlobalId, arguments.configId)
+                    ?: return@action // Ticket not found
 
                 // Get the info from the ticket
-                val ticketId = ticket[Tickets.id].value
-                val channelId = ticket[Tickets.channelId]
+                val channelId = ticket.channelId
 
                 if (arguments.delay != null) {
                     val now = Clock.System.now()
                     val systemTZ = TimeZone.currentSystemDefault()
                     val closeTime = now.plus(arguments.delay!!, systemTZ)
-                    scheduleTicketClose(ticketId, closeTime, now)
+                    scheduleTicketClose(ticket, closeTime, now)
                     // Update cache
-                    ticketsPendingClose[ticketId] = closeTime
+                    ticketsWaitingClose[ticket] = closeTime
 
                     // Send embed
                     val guild = mainGuild(event.kord)!!
-                    val channel = guild.getChannel(Snowflake(channelId)) as TextChannel
+                    val channel = guild.getChannel(channelId) as TextChannel
                     val delayDisplay = arguments.delay!!.toReadableString()
                     channel.createMessage {
                         embed {
@@ -611,17 +547,15 @@ class TicketSystemExtension : Extension() {
                         }
                     }
 
-                    // Update the ticket data
+                    // Update database
                     transaction {
-                        Tickets.update({ Tickets.id eq ticketId }) {
-                            it[Tickets.closeTime] = closeTime.toString()
-                        }
+                        ticket.closeTime = closeTime
                     }
                     return@action
                 }
 
                 // Close the ticket
-                doCloseTicket(ticketId)
+                doCloseTicket(ticket.id.value)
             }
         }
 
@@ -635,14 +569,15 @@ class TicketSystemExtension : Extension() {
             action {
                 // Get the ticket
                 val ticket = getTicket(arguments.ticketId, arguments.isGlobalId, arguments.configId)
+                    ?: return@action // Ticket not found
 
                 // Get the info from the ticket
-                val ticketId = ticket[Tickets.ticketId]
-                val channelId = ticket[Tickets.channelId]
+                val ticketId = ticket.id
+                val channelId = ticket.channelId
 
                 // Update the channel name
                 val guild = mainGuild(event.kord)!!
-                val channel = guild.getChannel(Snowflake(channelId)) as TextChannel
+                val channel = guild.getChannel(channelId) as TextChannel
                 val baseName = arguments.name
                 val id = ticketId.toString().padStart(4, '0')
                 channel.edit {
@@ -661,6 +596,7 @@ class TicketSystemExtension : Extension() {
         // TODO: Unclaim ticket command
         // TODO: Transfer ticket claim command
         // TODO: Assign ticket command
+        // endregion
     }
 
     private fun setupDb() {
@@ -669,64 +605,66 @@ class TicketSystemExtension : Extension() {
     }
 
     private fun updateConfigs() {
-        val allConfigs = mutableListOf<ResultRow>()
-        allConfigs.addAll(TicketConfigs.selectAll())
-        ticketConfigIds.clear()
-        ticketConfigIds.addAll(allConfigs.map { it[TicketConfigs.id].value })
+        // Get the configs
+        ticketConfigs.clear()
+        ticketConfigs.addAll(TicketConfig.all())
     }
 
     private fun updateTickets() {
-        val allTickets = mutableListOf<ResultRow>()
-        allTickets.addAll(Tickets.selectAll())
+        // Get the tickets
+        val allTickets = mutableListOf<Ticket>()
+        allTickets.addAll(Ticket.all())
+        tickets.clear()
+        tickets.addAll(allTickets)
 
-        val now = Clock.System.now().toEpochMilliseconds()
-        ticketsPendingClose.clear()
-        ticketsPendingClose.putAll(Tickets.select { Tickets.closeTime.isNotNull() and (Tickets.closed eq false) }
-            .filter { Instant.parse(it[Tickets.closeTime]!!).toEpochMilliseconds() >= now }
-            .associate { it[Tickets.id].value to Instant.parse(it[Tickets.closeTime]!!) })
+        // Update the tickets waiting to be closed
+        val now = Clock.System.now()
+        ticketsWaitingClose.clear()
+        ticketsWaitingClose.putAll(allTickets
+            .filter { !it.closed && it.closeTime != null && it.closeTime!! >= now }
+            .associateWith { it.closeTime!! })
 
-        ticketChannelIds.clear()
-        ticketChannelIds.putAll(allTickets.associate { it[Tickets.channelId] to it[Tickets.id].value })
-        ticketOwners.clear()
-        ticketOwners.putAll(allTickets.associate { it[Tickets.id].value to it[Tickets.ownerId] })
+        // Update cache
+        ticketsByChannelId.clear()
+        ticketsByChannelId.putAll(allTickets.associateBy { it.channelId })
+        ticketOwnerIds.clear()
+        ticketOwnerIds.putAll(allTickets.associateWith { it.ownerId })
     }
 
     private suspend fun setupInteractions() {
         val guild = mainGuild(kord)!!
-        val configs = mutableListOf<ResultRow>()
-        val openTickets = mutableListOf<ResultRow>()
-        transaction {
-            configs.addAll(TicketConfigs.selectAll())
-            openTickets.addAll(Tickets.select { Tickets.closed eq false })
-        }
 
-        configs.forEach {
-            val channel = guild.getChannel(Snowflake(it[TicketConfigs.messageChannelId])) as TextChannel
-            val message = channel.getMessageOrNull(Snowflake(it[TicketConfigs.messageId]))!!
+        // Setup config buttons
+        ticketConfigs.forEach {
+            val channel = guild.getChannel(it.messageChannelId) as TextChannel
+            val message = channel.getMessageOrNull(it.messageId)!!
 
             message.edit {
-                setupTicketConfigButtons(it[TicketConfigs.id].value)
+                setupTicketConfigButtons(it.id.value)
             }
         }
-        openTickets.forEach {
-            val channel = guild.getChannel(Snowflake(it[Tickets.channelId])) as TextChannel
-            val message = channel.getMessageOrNull(Snowflake(it[Tickets.botMsgId]!!))!!
 
-            message.setupTicketButtons(it[Tickets.id].value)
+        // Setup ticket buttons
+        val openTickets = tickets.filter { !it.closed }
+        openTickets.forEach {
+            val channel = guild.getChannel(it.channelId) as TextChannel
+            val message = channel.getMessageOrNull(it.botMsgId!!)!!
+
+            message.setupTicketButtons(it.id.value)
         }
     }
 
-    @Suppress("TooGenericExceptionCaught")
     private suspend fun createConfig(message: Message, arguments: SetupTicketsArguments) {
-        val categoryId = arguments.ticketCategory.id.value
-        val closedCategoryId = arguments.closedTicketCategory.id.value
+        val categoryId = arguments.ticketCategory.id
+        val closedCategoryId = arguments.closedTicketCategory.id
+        val roleIds = arguments.roles.map { it.id }
 
         val guild = mainGuild(kord)!!
-        val category = guild.getChannel(Snowflake(categoryId)) as Category
-        val closedCategory = guild.getChannel(Snowflake(closedCategoryId)) as Category
+        val category = guild.getChannel(categoryId) as Category
+        val closedCategory = guild.getChannel(closedCategoryId) as Category
 
         // Setup permissions for the roles
-        setupTicketCategoriesPermissions(category, closedCategory, arguments.roles.map { it.id })
+        setupTicketCategoriesPermissions(category, closedCategory, roleIds)
 
         // Send message if needed
         val msgChannel = arguments.messageChannel as TextChannel
@@ -740,48 +678,47 @@ class TicketSystemExtension : Extension() {
             }
         }
 
-        val msgId = msg.id.value
-        val msgChannelId = msg.channelId.value
+        val msgId = msg.id
+        val msgChannelId = msg.channelId
 
-        val rolesStr = arguments.roles.joinToString(",") { it.id.value.toString() }
         val configName = arguments.name ?: ""
 
-        var id: Int = -1
+        var ticketConfig: TicketConfig? = null
 
         try {
             // Update database
             transaction {
-                id = TicketConfigs.insertAndGetId {
-                    it[ticketCategoryId] = categoryId
-                    it[closedTicketCategoryId] = closedCategoryId
-                    it[messageId] = msgId
-                    it[messageChannelId] = msgChannelId
-                    it[roles] = rolesStr
-                    it[name] = configName
+                ticketConfig = TicketConfig.new {
+                    ticketCategoryId = categoryId
+                    closedTicketCategoryId = closedCategoryId
+                    messageId = msgId
+                    messageChannelId = msgChannelId
+                    roles = roleIds
+                    name = configName
 
                     if (arguments.ticketsBaseName != null) {
-                        it[ticketsBaseName] = arguments.ticketsBaseName!!
+                        ticketsBaseName = arguments.ticketsBaseName!!
                     }
-                }.value
+                }
             }
 
             // Update cache
-            ticketConfigIds.add(id)
+            ticketConfigs.add(ticketConfig!!)
 
-            LOGGER.debug { "Inserted ticket config $id" }
-        } catch (e: Exception) {
+            LOGGER.debug { "Inserted ticket config ${ticketConfig!!.displayName()}" }
+        } catch (e: SQLException) {
             LOGGER.error(e) { "Failed to insert the ticket config in the database" }
             throw DiscordRelayedException("Failed to insert the ticket config in the database")
         }
 
         // Add button to message
         msg.edit {
-            setupTicketConfigButtons(id)
+            setupTicketConfigButtons(ticketConfig!!.id.value)
         }
 
         // Send message to the user
-        LOGGER.info { "Created ticket config${if (configName.isNotBlank()) " '$configName'" else ""} id $id" }
-        message.respond("Created ticket config${if (configName.isNotBlank()) " '$configName'" else ""} id $id")
+        LOGGER.info { "Created ticket config ${ticketConfig!!.displayName()}" }
+        message.respond("Created ticket config ${ticketConfig!!.displayName()}")
     }
 
     private suspend fun MessageModifyBuilder.setupTicketConfigButtons(id: Int) {
@@ -809,6 +746,7 @@ class TicketSystemExtension : Extension() {
     ) {
         val guild = mainGuild(kord)!!
         val everyoneRole = guild.getEveryoneRole()
+
         category.edit {
             for (role in roles) {
                 addRoleOverwrite(role) {
@@ -819,6 +757,7 @@ class TicketSystemExtension : Extension() {
                 denied = TICKET_CATEGORY_EVERYONE_DENIED_PERMISSIONS
             }
         }
+
         closedCategory.edit {
             for (role in roles) {
                 addRoleOverwrite(role) {
@@ -831,47 +770,37 @@ class TicketSystemExtension : Extension() {
         }
     }
 
-    @Suppress("TooGenericExceptionCaught")
     private suspend fun deleteConfig(configId: Int, message: Message) {
         try {
-            var success = false
+            var config: TicketConfig? = null
             transaction {
-                success = TicketConfigs.deleteWhere { TicketConfigs.id eq configId } >= 1
+                // Update database
+                config = TicketConfig.findById(configId)
+                config?.delete()
             }
 
-            if (!success) {
+            if (config == null) {
                 return
             }
 
-            ticketConfigIds.remove(configId)
+            ticketConfigs.remove(config)
             // TODO: Delete all tickets within this config
-            LOGGER.info { "Deleted ticket config $configId" }
+            LOGGER.info { "Deleted ticket config ${config!!.displayName()}" }
             message.respond {
-                content = "Deleted the ticket config $configId"
+                content = "Deleted the ticket config ${config!!.displayName()}"
             }
-
-            LOGGER.debug { "Configs: $ticketConfigIds" }
-        } catch (e: Exception) {
+        } catch (e: SQLException) {
             LOGGER.error(e) { "Failed to delete the ticket config in the database" }
             throw DiscordRelayedException("Failed to delete the ticket config in the database")
         }
     }
 
     private suspend fun createTicket(owner: User, configId: Int, context: PublicInteractionContext) {
-        var config: ResultRow? = null
-        val userOpenTickets: MutableList<ResultRow> = mutableListOf()
-        var lastTicketCreateTime: Instant = Instant.DISTANT_PAST
-        val userId = owner.id.value
-
-        transaction {
-            TicketConfigs.select { TicketConfigs.id eq configId }.forEach {
-                config = it
-            }
-            Tickets.select { Tickets.ownerId eq userId and (Tickets.closed eq false) }.forEach(userOpenTickets::add)
-            lastTicketCreateTime = Tickets.select { Tickets.ownerId eq userId }
-                .map { it[Tickets.createTime].toInstant() }
-                .maxByOrNull { it } ?: Instant.DISTANT_PAST
-        }
+        val config = ticketConfigs.first { it.id.value == configId }
+        val userId = owner.id
+        val userTickets = tickets.filter { it.ownerId == userId }
+        val userOpenTickets = userTickets.filter { !it.closed }
+        val lastTicketCreateTime = userTickets.maxByOrNull { it.createTime }?.createTime ?: Instant.DISTANT_PAST
 
         if (userOpenTickets.size >= MAX_OPEN_TICKETS_PER_USER) {
             LOGGER.debug {
@@ -898,35 +827,36 @@ class TicketSystemExtension : Extension() {
             return
         }
 
-        val id = config!![TicketConfigs.ticketCount]
-        val categoryId = config!![TicketConfigs.ticketCategoryId]
-        val roleList = config!![TicketConfigs.roles]
-        val roles = roleList.split(",").map { Snowflake(it.toLong()) }
-        val baseName = config!![TicketConfigs.ticketsBaseName]
+        val id = config.ticketCount
+        val categoryId = config.ticketCategoryId
+        val roles = config.roles
+        val baseName = config.ticketsBaseName
         val guild = mainGuild(kord)!!
-        val category = guild.getChannel(Snowflake(categoryId)) as Category
+        val category = guild.getChannel(categoryId) as Category
 
         val channel = category.createTextChannel("$baseName-${id.toString().padStart(4, '0')}")
-        val chnlId = channel.id.value
+        val chnlId = channel.id
 
-        // Insert to database
-        var globalTicketId: Int = -1
+        // Update database
+        var ticket: Ticket? = null
         transaction {
-            globalTicketId = Tickets.insertAndGetId {
-                it[ticketId] = id
-                it[channelId] = chnlId
-                it[createTime] = time.toString()
-                it[ownerId] = userId
-                it[ticketConfigId] = configId
-            }.value
-            TicketConfigs.update({ TicketConfigs.id eq configId }) {
-                it[ticketCount] = id + 1
+            // Insert to database
+            ticket = Ticket.new {
+                ticketId = id
+                channelId = chnlId
+                createTime = time
+                ownerId = userId
+                this.config = config
             }
+
+            // Increase ticket count
+            config.ticketCount++
         }
 
         // Update cache
-        ticketChannelIds[channel.id.value] = globalTicketId
-        ticketOwners[globalTicketId] = userId
+        tickets.add(ticket!!)
+        ticketsByChannelId[chnlId] = ticket!!
+        ticketOwnerIds[ticket!!] = userId
 
         val everyoneRole = guild.getEveryoneRole()
         channel.edit {
@@ -948,6 +878,7 @@ class TicketSystemExtension : Extension() {
             permissionOverwrites = overwrites
         }
 
+        // Send bot message in the ticket channel
         val botMsg = channel.createMessage {
             content = owner.mention
             embed {
@@ -960,14 +891,12 @@ class TicketSystemExtension : Extension() {
                 color = DISCORD_GREEN
             }
         }
-        botMsg.setupTicketButtons(globalTicketId)
-        val msgId = botMsg.id.value
+        botMsg.setupTicketButtons(ticket!!.id.value)
 
         // Add bot message id to the ticket in the database
+        val msgId = botMsg.id
         transaction {
-            Tickets.update({ Tickets.ownerId eq userId and (Tickets.id eq globalTicketId) }) {
-                it[botMsgId] = msgId
-            }
+            ticket!!.botMsgId = msgId
         }
 
         // Send message to the user
@@ -980,44 +909,30 @@ class TicketSystemExtension : Extension() {
         LOGGER.debug { "Closing ticket $globalTicketId" }
 
         // Get the ticket
-        var ticket: ResultRow? = null
-        transaction {
-            ticket = Tickets.select { Tickets.id eq globalTicketId }.first()
-        }
+        val ticket = tickets.find { it.id.value == globalTicketId }
 
         // Get ticket info
-        val channelId = ticket!![Tickets.channelId]
-        val extraUserList = ticket!![Tickets.extraUsers]
-        val ownerId = ticket!![Tickets.ownerId].toLong()
-        val configId = ticket!![Tickets.ticketConfigId]
-        val botMsgId = ticket!![Tickets.botMsgId]
-
-        // Get the ticket config
-        var config: ResultRow? = null
-        transaction {
-            config = TicketConfigs.select { TicketConfigs.id eq configId }.first()
-        }
+        val channelId = ticket!!.channelId
+        val extraUsers = ticket.extraUsers
+        val ownerId = ticket.ownerId
+        val config = ticket.config
+        val botMsgId = ticket.botMsgId
 
         // Get ticket config info
-        val closedCategoryId = config!![TicketConfigs.closedTicketCategoryId]
-        val roleList = config!![TicketConfigs.roles]
-        val roles = roleList.split(",").map { Snowflake(it.toLong()) }
+        val closedCategoryId = config.closedTicketCategoryId
+        val roles = config.roles
 
         // Send close message
         val guild = mainGuild(kord)!!
-        val channel = guild.getChannel(Snowflake(channelId)) as TextChannel
+        val channel = guild.getChannel(channelId) as TextChannel
         channel.createMessage {
             content = "The ticket has been closed"
         }
 
         // Remove user permissions
         val everyoneRole = guild.getEveryoneRole()
-        val extraUsers = if (extraUserList.isNotBlank()) {
-            extraUserList.split(",").map { Snowflake(it.toLong()) }.toMutableList()
-        } else {
-            mutableListOf()
-        }
-        extraUsers.add(Snowflake(ownerId))
+        val users = extraUsers.toMutableList()
+        users.add(ownerId)
 
         channel.edit {
             val overwrites = permissionOverwrites ?: mutableSetOf()
@@ -1038,18 +953,18 @@ class TicketSystemExtension : Extension() {
 
         // Change category
         channel.edit {
-            parentId = Snowflake(closedCategoryId)
+            parentId = closedCategoryId
         }
 
         // Send close message to owner
-        val owner = guild.getMember(Snowflake(ownerId))
+        val owner = guild.getMember(ownerId)
         val dms = owner.getDmChannel()
         dms.createMessage {
             content = "Your ticket #${channel.name} has been closed"
         }
 
         // Remove buttons
-        val botMsg = channel.getMessage(Snowflake(botMsgId!!))
+        val botMsg = channel.getMessage(botMsgId!!)
         botMsg.edit {
             components {
                 removeAll()
@@ -1058,36 +973,36 @@ class TicketSystemExtension : Extension() {
 
         // Update database
         transaction {
-            Tickets.update({ Tickets.id eq globalTicketId }) {
-                it[Tickets.closeTime] = closeTime.toString()
-                it[closed] = true
-            }
+            ticket.closeTime = closeTime
+            ticket.closed = true
         }
 
         // Update cache
-        ticketsPendingClose.remove(globalTicketId)
-        closeTicketTasks.remove(globalTicketId)
+        ticketsWaitingClose.remove(ticket)
+        closeTicketTasks.remove(ticket)
     }
 
     private fun schedulePendingTicketsClose() {
         val now = Clock.System.now()
-        for ((ticketId, instant) in ticketsPendingClose) {
-            scheduleTicketClose(ticketId, instant, now)
+        for ((ticket, instant) in ticketsWaitingClose) {
+            scheduleTicketClose(ticket, instant, now)
         }
     }
 
-    private fun scheduleTicketClose(ticketId: Int, instant: Instant, now: Instant) {
-        var scheduleTime = instant - now
+    private fun scheduleTicketClose(ticket: Ticket, closeInstant: Instant, now: Instant) {
+        var scheduleTime = closeInstant - now
         if (scheduleTime.inWholeSeconds < MIN_SCHEDULE_TICKET_CLOSE_DELAY) {
             scheduleTime = Duration.seconds(MIN_SCHEDULE_TICKET_CLOSE_DELAY)
         }
 
-        LOGGER.debug { "Scheduling ticket $ticketId to close in $scheduleTime" }
+        LOGGER.debug { "Scheduling ticket ${ticket.id} to close in $scheduleTime" }
         val task = scheduler.schedule(scheduleTime) {
-            doCloseTicket(ticketId)
+            doCloseTicket(ticket.id.value, closeInstant)
         }
-        closeTicketTasks[ticketId] = task
+        closeTicketTasks[ticket] = task
     }
+
+    fun ticketConfigExists(id: Int): Boolean = ticketConfigs.any { it.id.value == id }
 
     private suspend fun Message.setupTicketButtons(globalTicketId: Int) {
         LOGGER.debug { "Adding ticket buttons for ticket $globalTicketId in message $id" }
@@ -1144,59 +1059,37 @@ class TicketSystemExtension : Extension() {
         }
     }
 
-    private fun ChatCommandContext<*>.getTicket(
+    private suspend fun ChatCommandContext<*>.getTicket(
         ticketId: Int?,
         isGlobalId: Boolean?,
         configId: Int?
-    ): ResultRow {
+    ): Ticket? {
         if (ticketId != null) {
-            // Get info using the ticket ID
-            var result: ResultRow? = null
-            transaction {
-                val query: Query
-                if (isGlobalId != null) {
-                    query = if (isGlobalId == true) {
-                        Tickets.select { Tickets.id eq ticketId }
-                    } else if (configId != null) {
-                        Tickets.select {
-                            Tickets.ticketConfigId eq configId and (Tickets.ticketId eq ticketId)
-                        }
-                    } else if (ticketConfigIds.size == 1) {
-                        // Ticket ids are unique when there is only one config
-                        Tickets.select { Tickets.ticketId eq ticketId }
-                    } else {
-                        throw DiscordRelayedException(
-                            "You must specify a ticket config id or " +
-                                    "a global ticket id if there are multiple ticket configs"
-                        )
-                    }
-                } else {
-                    query = if (ticketConfigIds.size == 1) {
-                        // Ticket ids are unique when there is only one config
-                        Tickets.select { Tickets.ticketId eq ticketId }
-                    } else {
-                        throw DiscordRelayedException(
-                            "You must specify a ticket config id or " +
-                                    "a global ticket id if there are multiple ticket configs"
-                        )
-                    }
+            // Get ticket using its ID
+            return if (isGlobalId == true) {
+                tickets.find { it.id.value == ticketId }
+            } else if (configId != null) {
+                tickets.find { it.ticketId == ticketId && it.config.id.value == configId }
+            } else if (ticketConfigs.size == 1) {
+                tickets.find { it.ticketId == ticketId }
+            } else {
+                message.respond {
+                    content = "You must specify a ticket config id " +
+                            "or a global ticket id if there are multiple ticket configs"
                 }
-                result = query.first()
+                null
             }
-
-            return result!!
         } else {
-            // Get info from ticket corresponding to channel
-            val channelId = channel.id.value
-            var ticket: ResultRow? = null
-            transaction {
-                ticket = Tickets.select { Tickets.channelId eq channelId }.firstOrNull()
-                    ?: throw DiscordRelayedException(
-                        "You must run this command in a ticket channel or specify a ticket id"
-                    )
+            // Get ticket corresponding to channel
+            val channelId = channel.id
+            val ticket = tickets.find { it.channelId == channelId }
+            if (ticket == null) {
+                message.respond {
+                    content = "You must run this command in a ticket channel or specify a ticket id"
+                }
             }
 
-            return ticket!!
+            return ticket
         }
     }
 
@@ -1206,19 +1099,16 @@ class TicketSystemExtension : Extension() {
         }
 
         // Moderators can close tickets from anywhere
-        val channelId = channelIdFor(event)!!
-        if (channelId !in ticketChannelIds.keys) {
+        val channelId = Snowflake(channelIdFor(event)!!)
+        if (channelId !in ticketsByChannelId.keys) {
             isModerator()
         } else {
             // Only ticket owners can close tickets, from its channel
-            val userId = userFor(event)!!.id.value
-            val globalTicketId = ticketChannelIds[channelId]!!
-            if (ticketOwners[globalTicketId] != userId) {
-                fail("You must be owner of the ticket to close it")
+            val userId = userFor(event)!!.id
+            val ticket = ticketsByChannelId[channelId]
+            if (ticket!!.ownerId != userId) {
+                fail("You must be the owner of the ticket to close it")
             }
         }
     }
-
-    private fun getTicketConfigDisplayName(configName: String, configId: Int) =
-        if (configName.isNotBlank()) "'$configName'" else "ID $configId"
 }

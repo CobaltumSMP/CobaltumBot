@@ -2,6 +2,7 @@ package cobaltumsmp.discordbot.extensions.ticketsystem
 
 import cobaltumsmp.discordbot.GUILD_MAIN
 import cobaltumsmp.discordbot.checkHasPermissionsInChannel
+import cobaltumsmp.discordbot.database.entities.TicketConfig
 import cobaltumsmp.discordbot.database.tables.TicketConfigs
 import cobaltumsmp.discordbot.database.tables.Tickets
 import com.kotlindiscord.kord.extensions.DiscordRelayedException
@@ -59,8 +60,8 @@ class SetupTicketsArguments : Arguments() {
         "roles",
         "A list of roles which have access to all tickets in this ticket config",
         requiredGuild = { GUILD_MAIN }) { _, list ->
-        if (list.size > MAX_TICKET_CONFIG_ROLES) {
-            throw DiscordRelayedException("You can only have $MAX_TICKET_CONFIG_ROLES roles in a ticket config")
+        if (list.size > TicketConfig.MAX_ROLES) {
+            throw DiscordRelayedException("You can only have ${TicketConfig.MAX_ROLES} roles in a ticket config")
         }
     }
 
@@ -90,7 +91,7 @@ class SetupTicketsArguments : Arguments() {
 
 class GenericTicketConfigArguments(private val extension: TicketSystemExtension) : Arguments() {
     val configId by int("configId", "The id of the ticket config") { _, value ->
-        if (!extension.ticketConfigIds.contains(value)) {
+        if (!extension.ticketConfigExists(value)) {
             throw DiscordRelayedException("A config with this id does not exist")
         }
     }
@@ -104,7 +105,7 @@ class FixTicketArguments(private val extension: TicketSystemExtension) : Argumen
     )
     val isGlobalId by optionalBoolean("isGlobalId", "Whether the ticket id is a global id")
     val configId by optionalInt("configId", "The id of the ticket config from which the ticket is") { _, value ->
-        if (value != null && !extension.ticketConfigIds.contains(value)) {
+        if (value != null && !extension.ticketConfigExists(value)) {
             throw DiscordRelayedException("A config with this id does not exist")
         }
     }
@@ -119,7 +120,7 @@ class AddUserToTicketArguments(private val extension: TicketSystemExtension) : A
     )
     val isGlobalId by optionalBoolean("isGlobalId", "Whether the ticket id is a global id")
     val configId by optionalInt("configId", "The id of the ticket config from which the ticket is") { _, value ->
-        if (value != null && !extension.ticketConfigIds.contains(value)) {
+        if (value != null && !extension.ticketConfigExists(value)) {
             throw DiscordRelayedException("A config with this id does not exist")
         }
     }
@@ -134,7 +135,7 @@ class RemoveUserFromTicketArguments(private val extension: TicketSystemExtension
     )
     val isGlobalId by optionalBoolean("isGlobalId", "Whether the ticket id is a global id")
     val configId by optionalInt("configId", "The id of the ticket config from which the ticket is") { _, value ->
-        if (value != null && !extension.ticketConfigIds.contains(value)) {
+        if (value != null && !extension.ticketConfigExists(value)) {
             throw DiscordRelayedException("A config with this id does not exist")
         }
     }
@@ -149,7 +150,7 @@ class TransferTicketArguments(private val extension: TicketSystemExtension) : Ar
     )
     val isGlobalId by optionalBoolean("isGlobalId", "Whether the ticket id is a global id")
     val configId by optionalInt("configId", "The id of the ticket config from which the ticket is") { _, value ->
-        if (value != null && !extension.ticketConfigIds.contains(value)) {
+        if (value != null && !extension.ticketConfigExists(value)) {
             throw DiscordRelayedException("A config with this id does not exist")
         }
     }
@@ -164,7 +165,7 @@ class CloseTicketArguments(private val extension: TicketSystemExtension) : Argum
     )
     val isGlobalId by optionalBoolean("isGlobalId", "Whether the ticket id is a global id")
     val configId by optionalInt("configId", "The id of the ticket config from which the ticket is") { _, value ->
-        if (value != null && !extension.ticketConfigIds.contains(value)) {
+        if (value != null && !extension.ticketConfigExists(value)) {
             throw DiscordRelayedException("A config with this id does not exist")
         }
     }
@@ -179,7 +180,7 @@ class RenameTicketArguments(private val extension: TicketSystemExtension) : Argu
     )
     val isGlobalId by optionalBoolean("isGlobalId", "Whether the ticket id is a global id")
     val configId by optionalInt("configId", "The id of the ticket config from which the ticket is") { _, value ->
-        if (value != null && !extension.ticketConfigIds.contains(value)) {
+        if (value != null && !extension.ticketConfigExists(value)) {
             throw DiscordRelayedException("A config with this id does not exist")
         }
     }
