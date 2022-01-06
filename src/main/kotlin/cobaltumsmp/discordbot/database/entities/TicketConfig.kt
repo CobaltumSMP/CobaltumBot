@@ -10,37 +10,37 @@ import org.jetbrains.exposed.dao.id.EntityID
 class TicketConfig(id: EntityID<Int>) : IntEntity(id) {
     private var _ticketCategoryId by TicketConfigs.ticketCategoryId
     var ticketCategoryId: Snowflake
-        get() = Snowflake(_ticketCategoryId)
+        get() = _ticketCategoryId.deserialize()
         set(value) {
-            _ticketCategoryId = value.value
+            _ticketCategoryId = value.serialize()
         }
 
     private var _closedTicketCategoryId by TicketConfigs.closedTicketCategoryId
     var closedTicketCategoryId: Snowflake
-        get() = Snowflake(_closedTicketCategoryId)
+        get() = _closedTicketCategoryId.deserialize()
         set(value) {
-            _closedTicketCategoryId = value.value
+            _closedTicketCategoryId = value.serialize()
         }
 
     private var _messageId by TicketConfigs.messageId
     var messageId: Snowflake
-        get() = Snowflake(_messageId)
+        get() = _messageId.deserialize()
         set(value) {
-            _messageId = value.value
+            _messageId = value.serialize()
         }
 
     private var _messageChannelId by TicketConfigs.messageChannelId
     var messageChannelId: Snowflake
-        get() = Snowflake(_messageChannelId)
+        get() = _messageChannelId.deserialize()
         set(value) {
-            _messageChannelId = value.value
+            _messageChannelId = value.serialize()
         }
 
     private var _roles by TicketConfigs.roles
     var roles: List<Snowflake>
-        get() = _roles.split(",").map { Snowflake(it) }
+        get() = _roles.deserializeSnowflakes()
         set(value) {
-            _roles = value.joinToString(",") { it.value.toString() }
+            _roles = value.serialize()
         }
 
     var ticketCount by TicketConfigs.ticketCount

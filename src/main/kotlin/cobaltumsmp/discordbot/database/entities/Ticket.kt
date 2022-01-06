@@ -3,7 +3,6 @@ package cobaltumsmp.discordbot.database.entities
 import cobaltumsmp.discordbot.database.tables.Tickets
 import dev.kord.common.entity.Snowflake
 import kotlinx.datetime.Instant
-import kotlinx.datetime.toInstant
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
@@ -13,53 +12,53 @@ class Ticket(id: EntityID<Int>) : IntEntity(id) {
 
     private var _channelId by Tickets.channelId
     var channelId: Snowflake
-        get() = Snowflake(_channelId)
+        get() = _channelId.deserialize()
         set(value) {
-            _channelId = value.value
+            _channelId = value.serialize()
         }
 
     private var _createTime by Tickets.createTime
     var createTime: Instant
-        get() = _createTime.toInstant()
+        get() = _createTime.deserializeInstant()
         set(value) {
-            _createTime = value.toString()
+            _createTime = value.serialize()
         }
 
     var closed by Tickets.closed
 
     private var _closeTime by Tickets.closeTime
     var closeTime: Instant?
-        get() = _closeTime?.toInstant()
+        get() = _closeTime?.deserializeInstant()
         set(value) {
-            _closeTime = value?.toString()
+            _closeTime = value?.serialize()
         }
 
     private var _botMsgId by Tickets.botMsgId
     var botMsgId: Snowflake?
-        get() = _botMsgId?.let { Snowflake(it) }
+        get() = _botMsgId?.deserialize()
         set(value) {
-            _botMsgId = value?.value
+            _botMsgId = value?.serialize()
         }
 
     private var _ownerId by Tickets.ownerId
     var ownerId: Snowflake
-        get() = Snowflake(_ownerId)
+        get() = _ownerId.deserialize()
         set(value) {
-            _ownerId = value.value
+            _ownerId = value.serialize()
         }
 
     private var _extraUsers by Tickets.extraUsers
     var extraUsers: List<Snowflake>
-        get() = _extraUsers.split(",").map { Snowflake(it) }
+        get() = _extraUsers.deserializeSnowflakes()
         set(value) {
-            _extraUsers = value.joinToString(",") { it.value.toString() }
+            _extraUsers = value.serialize()
         }
 
     private var _assignedUserId by Tickets.assignedUserId
     var assignedUserId: Snowflake?
-        get() = _assignedUserId?.let { Snowflake(it) }
+        get() = _assignedUserId?.deserialize()
         set(value) {
-            _assignedUserId = value?.value
+            _assignedUserId = value?.serialize()
         }
 
     var config by TicketConfig referencedOn Tickets.ticketConfigId
