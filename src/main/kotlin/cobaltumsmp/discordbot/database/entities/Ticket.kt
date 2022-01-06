@@ -61,6 +61,8 @@ class Ticket(id: EntityID<Int>) : IntEntity(id) {
             _assignedUserId = value?.serialize()
         }
 
+    var ticketConfigId by Tickets.ticketConfigId
+
     var config by TicketConfig referencedOn Tickets.ticketConfigId
 
     override fun equals(other: Any?): Boolean = other is Ticket && other.id == id

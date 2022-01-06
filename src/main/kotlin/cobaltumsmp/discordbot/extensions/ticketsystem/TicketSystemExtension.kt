@@ -65,7 +65,7 @@ import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 
 internal const val MIN_TICKET_CREATE_DELAY_MINUTES = 0.5
-internal const val MIN_TICKET_CREATE_DELAY = MIN_TICKET_CREATE_DELAY_MINUTES * 60 * 1000L
+internal const val MIN_TICKET_CREATE_DELAY = MIN_TICKET_CREATE_DELAY_MINUTES * 60
 internal const val MAX_OPEN_TICKETS_PER_USER = 3
 internal const val MIN_SCHEDULE_TICKET_CLOSE_DELAY = 30
 
@@ -310,10 +310,12 @@ class TicketSystemExtension : Extension() {
                 // Get the info from the ticket
                 val ticketChannelId = ticket.channelId
                 val closed = ticket.closed
-                val config = ticket.config
                 val allowedUsers = mutableListOf<Snowflake>()
                 allowedUsers.add(ticket.ownerId)
                 allowedUsers.addAll(ticket.extraUsers)
+
+                // Get the config
+                val config = transaction { ticket.config } // Can only be done inside a transaction
 
                 // Get the info from the config
                 val roles = config.roles
@@ -731,7 +733,8 @@ class TicketSystemExtension : Extension() {
                 action {
                     val user = user.asUser()
                     LOGGER.debug {
-                        "Opening ticket in config $id for user ${user.username}#${user.discriminator} (${user.id})"
+                        "Opening ticket in config $id for user " +
+                                "${user.username}#${user.discriminator} (${user.id.value})"
                     }
                     createTicket(user, id, this)
                 }
@@ -804,7 +807,7 @@ class TicketSystemExtension : Extension() {
 
         if (userOpenTickets.size >= MAX_OPEN_TICKETS_PER_USER) {
             LOGGER.debug {
-                "User ${owner.username}#${owner.discriminator} ($userId) " +
+                "User ${owner.username}#${owner.discriminator} (${userId.value}) " +
                         "has too many open tickets (${userOpenTickets.size})"
             }
             context.respondEphemeral {
@@ -817,7 +820,7 @@ class TicketSystemExtension : Extension() {
         val timeDelta = time - lastTicketCreateTime
         if (lastTicketCreateTime != Instant.DISTANT_PAST && timeDelta.inWholeSeconds <= MIN_TICKET_CREATE_DELAY) {
             LOGGER.debug {
-                "User ${owner.username}#${owner.discriminator} ($userId) " +
+                "User ${owner.username}#${owner.discriminator} (${userId.value}) " +
                         "has created a ticket in the last $MIN_TICKET_CREATE_DELAY_MINUTES minutes"
             }
             context.respondEphemeral {
@@ -918,8 +921,10 @@ class TicketSystemExtension : Extension() {
         val channelId = ticket!!.channelId
         val extraUsers = ticket.extraUsers
         val ownerId = ticket.ownerId
-        val config = ticket.config
         val botMsgId = ticket.botMsgId
+
+        // Get the config
+        val config = transaction { ticket.config } // Can only be done in a transaction
 
         // Get ticket config info
         val closedCategoryId = config.closedTicketCategoryId
@@ -1072,7 +1077,7 @@ class TicketSystemExtension : Extension() {
             return if (isGlobalId == true) {
                 tickets.find { it.id.value == ticketId }
             } else if (configId != null) {
-                tickets.find { it.ticketId == ticketId && it.config.id.value == configId }
+                tickets.find { it.ticketId == ticketId && it.ticketConfigId.value == configId }
             } else if (ticketConfigs.size == 1) {
                 tickets.find { it.ticketId == ticketId }
             } else {
