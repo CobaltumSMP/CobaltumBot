@@ -889,6 +889,9 @@ class TicketSystemExtension : Extension() {
                     You can use the button below to close the ticket.
                 """.trimIndent()
                 color = DISCORD_GREEN
+                footer {
+                    text = "Ticket ID: ${ticket!!.id.value}"
+                }
             }
         }
         botMsg.setupTicketButtons(ticket!!.id.value)
