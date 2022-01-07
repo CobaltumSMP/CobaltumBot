@@ -3,6 +3,7 @@ package cobaltumsmp.discordbot
 import cobaltumsmp.discordbot.extensions.ModerationExtension
 import cobaltumsmp.discordbot.extensions.UtilsExtension
 import cobaltumsmp.discordbot.extensions.VersionCheckExtension
+import cobaltumsmp.discordbot.extensions.suggestions.SuggestionsExtension
 import cobaltumsmp.discordbot.extensions.ticketsystem.TicketSystemExtension
 import com.kotlindiscord.kord.extensions.ExtensibleBot
 
@@ -38,6 +39,7 @@ internal suspend fun main() {
             add(::VersionCheckExtension)
 //            add(::LoggingExtension)
             add(::ModerationExtension)
+            add(::SuggestionsExtension)
 
             add(::TicketSystemExtension)
         }

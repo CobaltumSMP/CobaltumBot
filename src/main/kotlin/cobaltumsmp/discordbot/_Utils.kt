@@ -9,6 +9,9 @@ import dev.kord.core.entity.Guild
 import dev.kord.rest.builder.channel.PermissionOverwriteBuilder
 import kotlinx.datetime.DateTimePeriod
 
+internal fun escapeCodeBlocks(text: String): String =
+    text.replace("```", "\\`\\`\\`")
+
 internal fun multipleSnowflakes(key: String): List<Snowflake> =
     envOrNull(key)?.let { v -> v.split(",").map { Snowflake(it.trim()) } } ?: emptyList()
 
