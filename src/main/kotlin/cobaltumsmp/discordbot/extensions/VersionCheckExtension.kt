@@ -6,9 +6,11 @@ import com.google.gson.JsonParseException
 import com.kotlindiscord.kord.extensions.extensions.Extension
 import com.kotlindiscord.kord.extensions.extensions.chatCommand
 import com.kotlindiscord.kord.extensions.extensions.event
+import com.kotlindiscord.kord.extensions.i18n.TranslationsProvider
 import com.kotlindiscord.kord.extensions.utils.envOrNull
 import com.kotlindiscord.kord.extensions.utils.respond
 import com.kotlindiscord.kord.extensions.utils.scheduling.Scheduler
+import dev.kord.core.behavior.channel.createMessage
 import dev.kord.core.entity.channel.TextChannel
 import dev.kord.core.event.gateway.ReadyEvent
 import dev.kord.rest.builder.message.create.embed
@@ -21,6 +23,7 @@ import io.ktor.client.statement.HttpResponse
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import mu.KotlinLogging
+import org.koin.core.component.inject
 import org.quiltmc.launchermeta.version_manifest.VersionEntry
 import org.quiltmc.launchermeta.version_manifest.VersionManifest
 import java.util.Locale
@@ -35,10 +38,13 @@ private val MC_UPDATES_CHANNELS = multipleSnowflakes("CHANNEL_ID_VC_MC")
 private val JIRA_URL = envOrNull("VC_JIRA_URL")
 private val MINECRAFT_URL = envOrNull("VC_MINECRAFT_URL")
 
-private val LOGGER = KotlinLogging.logger("cobaltumsmp.discordbot.extensions.VersionCheckExtension")
+private val LOGGER = KotlinLogging.logger("cobaltumsmp.discordbot.extensions.versioncheck")
 
 internal class VersionCheckExtension : Extension() {
-    override val name = "Version checker"
+    override val name = "versioncheck"
+    override val bundle = "cobaltumbot"
+
+    private val translationsProvider: TranslationsProvider by inject()
     private val client = HttpClient {
         install(JsonFeature) {
             serializer = KotlinxSerializer(Json {
@@ -88,7 +94,10 @@ internal class VersionCheckExtension : Extension() {
 
         chatCommand {
             name = "versioncheck"
-            description = "Execute a version check"
+            description = translationsProvider.translate(
+                "versioncheck.command.versioncheck.description",
+                bundleName = "cobaltumbot"
+            )
 
             check { isModerator() }
 
@@ -97,28 +106,36 @@ internal class VersionCheckExtension : Extension() {
                     "Running manual version check task from command (requested by ${message.author?.username})"
                 }
 
-                message.respond("Manually running a version check")
+                message.respondTranslated("versioncheck.command.versioncheck.manually_running")
 
                 try {
                     val checked = checkUpdates()
                     if (!checked) {
-                        message.respond("A version check was already running")
+                        message.respondTranslated("versioncheck.command.versioncheck.already_running")
                     } else {
+                        // Translate description
+                        val mcLatest =
+                            translate("versioncheck.latest_version", arrayOf(getLatestMinecraftVersion().id))
+                        val mcTotal = translate("versioncheck.total_versions", arrayOf(mcVersions.size))
+                        val jiraLatest =
+                            translate("versioncheck.latest_version", arrayOf(getLatestJiraVersion().id))
+                        val jiraTotal = translate("versioncheck.total_versions", arrayOf(jiraVersions.size))
+
                         message.respond {
                             embed {
-                                title = "Version check ran successfully"
+                                title = translate("versioncheck.command.versioncheck.success")
                                 description = """
-                                    **Minecraft** | Latest version: ${getLatestMinecraftVersion().id}
-                                    **Minecraft** | Total versions: ${mcVersions.size}
-                                    **Jira** | Latest version: ${getLatestJiraVersion().name}
-                                    **Jira** | Total versions: ${jiraVersions.size}
+                                    **Minecraft** | $mcLatest
+                                    **Minecraft** | $mcTotal
+                                    **Jira** | $jiraLatest
+                                    **Jira** | $jiraTotal
                                 """.trimIndent()
                             }
                         }
                     }
                 } catch (e: Exception) {
                     LOGGER.error(e) { "There was an error in a manually run version check" }
-                    message.respond("There was an error, please report this to a bot admin")
+                    throw e // Rethrow the exception to let kordex handle it
                 }
             }
         }
@@ -197,9 +214,13 @@ internal class VersionCheckExtension : Extension() {
 
             if (newJiraVersion != null) {
                 jiraUpdateChannels.forEach {
-                    it.createMessage(
-                        "A new version has been added to the Minecraft issue tracker: ${newJiraVersion.name}"
-                    )
+                    it.createMessage {
+                        content = translationsProvider.translate(
+                            "versioncheck.new_version.jira",
+                            bundleName = "cobaltumbot",
+                            replacements = arrayOf(newJiraVersion.name)
+                        )
+                    }
                 }
             }
 
@@ -207,7 +228,13 @@ internal class VersionCheckExtension : Extension() {
 
             if (newMcVersion != null) {
                 mcUpdateChannels.forEach {
-                    it.createMessage("A new Minecraft ${newMcVersion.type} is out: ${newMcVersion.id}!")
+                    it.createMessage {
+                        content = translationsProvider.translate(
+                            "versioncheck.new_version.mc",
+                            bundleName = "cobaltumbot",
+                            replacements = arrayOf(newMcVersion.type, newMcVersion.id)
+                        )
+                    }
                 }
             }
         } catch (e: Throwable) {

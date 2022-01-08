@@ -19,9 +19,9 @@ import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalChanne
 import com.kotlindiscord.kord.extensions.commands.converters.impl.string
 import com.kotlindiscord.kord.extensions.extensions.Extension
 import com.kotlindiscord.kord.extensions.extensions.chatCommand
+import com.kotlindiscord.kord.extensions.i18n.TranslationsProvider
 import com.kotlindiscord.kord.extensions.utils.botHasPermissions
 import com.kotlindiscord.kord.extensions.utils.permissionsForMember
-import com.kotlindiscord.kord.extensions.utils.respond
 import dev.kord.common.entity.ChannelType
 import dev.kord.common.entity.Permission
 import dev.kord.common.entity.PresenceStatus
@@ -36,14 +36,18 @@ import io.ktor.client.call.receive
 import io.ktor.client.request.get
 import io.ktor.client.statement.HttpResponse
 import mu.KotlinLogging
+import org.koin.core.component.inject
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.util.Locale
 
-private val LOGGER = KotlinLogging.logger("cobaltumsmp.discordbot.extensions.UtilsExtension")
+private val LOGGER = KotlinLogging.logger("cobaltumsmp.discordbot.extensions.utils")
 
 internal class UtilsExtension : Extension() {
     override val name = "utils"
+    override val bundle = "cobaltumbot"
+
+    private val translationsProvider: TranslationsProvider by inject()
     private val broadcastTextChannels = mutableMapOf<Snowflake, TextChannel>()
     private val broadcastNewsChannels = mutableMapOf<Snowflake, NewsChannel>()
     private val client = HttpClient { } // Used for downloading attachments
@@ -84,7 +88,7 @@ internal class UtilsExtension : Extension() {
 
         chatCommand(::EchoArguments) {
             name = "echo"
-            description = "Echo a message"
+            description = translationsProvider.translate("utils.command.echo.description", bundleName = "cobaltumbot")
 
             check { inMainGuild() }
 
@@ -93,10 +97,10 @@ internal class UtilsExtension : Extension() {
                 val guildChannel = channel as GuildChannel
 
                 if (!guildChannel.botHasPermissions(Permission.SendMessages)) {
-                    message.respond("The bot does not have permission to send messages in that channel")
+                    message.respondTranslated("utils.command.echo.missing_permissions.bot")
                     return@action
                 } else if (!guildChannel.permissionsForMember(user!!).contains(Permission.SendMessages)) {
-                    message.respond("You don't have permission to send messages in that channel")
+                    message.respondTranslated("utils.command.echo.missing_permissions.user")
                     return@action
                 }
 
@@ -108,7 +112,8 @@ internal class UtilsExtension : Extension() {
 
         chatCommand(::EchoAttachmentsArguments) {
             name = "echoattachments"
-            description = "Echo a message with just attachments"
+            description =
+                translationsProvider.translate("utils.command.echoattachments.description", bundleName = "cobaltumbot")
 
             check { inMainGuild() }
             check { hasPermission(Permission.AttachFiles) }
@@ -119,20 +124,20 @@ internal class UtilsExtension : Extension() {
 
                 // Check permissions
                 if (!guildChannel.botHasPermissions(Permission.SendMessages, Permission.AttachFiles)) {
-                    message.respond("The bot does not have permission to send messages or attach files in that channel")
+                    message.respondTranslated("utils.command.echoattachments.missing_permissions.bot")
                     return@action
                 } else if (!guildChannel.permissionsForMember(user!!)
                         .contains(Permission.SendMessages) || !guildChannel.permissionsForMember(user!!)
                         .contains(Permission.AttachFiles)
                 ) {
-                    message.respond("You don't have permission to send messages or attach files in that channel")
+                    message.respondTranslated("utils.command.echoattachments.missing_permissions.user")
                     return@action
                 }
 
                 // Check attachments
                 val attachments = message.attachments
                 if (attachments.isEmpty()) {
-                    message.respond("No attachments found")
+                    message.respondTranslated("utils.command.echoattachments.no_attachments")
                     return@action
                 }
 
@@ -147,7 +152,7 @@ internal class UtilsExtension : Extension() {
                         files.add(NamedFile(attachment.filename, inputStream))
                     } catch (e: IOException) {
                         LOGGER.error("Could not download attachment $attachment", e)
-                        throw DiscordRelayedException("Could not download attachment")
+                        throw DiscordRelayedException(translate("utils.command.echoattachments.download_failed"))
                     }
                 }
 
@@ -173,37 +178,40 @@ internal class UtilsExtension : Extension() {
 
         if (broadcastTextChannels.isEmpty() && broadcastNewsChannels.isEmpty()) {
             LOGGER.warn { "No broadcast channel specified" }
-        }
+        } else {
+            val size = broadcastTextChannels.size + broadcastNewsChannels.size
+            chatCommand(::BroadcastArguments) {
+                name = "broadcast"
+                description = translationsProvider.translate(
+                    "utils.command.broadcast.description",
+                    bundleName = "cobaltumbot",
+                    replacements = arrayOf(size)
+                )
 
-        chatCommand(::BroadcastArguments) {
-            name = "broadcast"
-            description = "Send a message as the bot in the configured broadcast channel"
+                check { inMainGuild() }
+                check { isModerator() }
 
-            check { inMainGuild() }
-            check { isModerator() }
-
-            action {
-                if (broadcastTextChannels.isEmpty() && broadcastNewsChannels.isEmpty()) {
-                    message.respond("No broadcast channel configured", pingInReply = false)
-                    return@action
-                }
-
-                for (channel in broadcastTextChannels.values) {
-                    channel.createMessage {
-                        content = arguments.message
+                action {
+                    for (channel in broadcastTextChannels.values) {
+                        channel.createMessage {
+                            content = arguments.message
+                        }
                     }
-                }
-                for (channel in broadcastNewsChannels.values) {
-                    channel.createMessage {
-                        content = arguments.message
+                    for (channel in broadcastNewsChannels.values) {
+                        channel.createMessage {
+                            content = arguments.message
+                        }
                     }
+
+                    message.respondTranslated("utils.command.broadcast.success")
                 }
             }
         }
 
         chatCommand(::SetPresenceArguments) {
             name = "setpresence"
-            description = "Set the bot presence"
+            description =
+                translationsProvider.translate("utils.command.setpresence.description", bundleName = "cobaltumbot")
 
             check { inMainGuild() }
             check { isAdministrator() }
@@ -218,23 +226,29 @@ internal class UtilsExtension : Extension() {
                         "watching" -> watching(arguments.description)
                         "competing" -> competing(arguments.description)
                         "streaming" -> {
-                            message.respond("Streaming is not supported")
+                            message.respondTranslated("utils.command.setpresence.streaming_not_supported")
                             return@action
                         }
                         else -> {
-                            message.respond("Invalid presence type")
+                            message.respondTranslated("utils.command.setpresence.invalid_type")
                             return@action
                         }
                     }
                 }
 
-                message.respond("Presence set to '$type ${arguments.description}'")
+                message.respondTranslated(
+                    "utils.command.setpresence.success",
+                    arrayOf(type, arguments.description)
+                )
             }
         }
 
         chatCommand(::SetPresenceStatusArguments) {
             name = "setpresencestatus"
-            description = "Set the bot presence status"
+            description = translationsProvider.translate(
+                "utils.command.setpresencestatus.description",
+                bundleName = "cobaltumbot"
+            )
 
             check { inMainGuild() }
             check { isAdministrator() }
@@ -250,19 +264,20 @@ internal class UtilsExtension : Extension() {
                         "offline" -> PresenceStatus.Offline
                         "invisible" -> PresenceStatus.Invisible
                         else -> {
-                            message.respond("Invalid status, must be one of online, idle, dnd, offline, invisible")
+                            message.respondTranslated("utils.command.setpresencestatus.invalid_status")
                             return@action
                         }
                     }
                 }
 
-                message.respond("Presence status set to $statusStr")
+                message.respondTranslated("utils.command.setpresencestatus.success")
             }
         }
 
         chatCommand {
             name = "resetpresence"
-            description = "Reset the bot presence"
+            description =
+                translationsProvider.translate("utils.command.resetpresence.description", bundleName = "cobaltumbot")
 
             check { inMainGuild() }
             check { isAdministrator() }
@@ -274,30 +289,51 @@ internal class UtilsExtension : Extension() {
                     afk = false
                 }
 
-                message.respond("Presence reset")
+                message.respondTranslated("utils.command.resetpresence.success")
             }
         }
     }
 
     inner class EchoArguments : Arguments() {
-        val channel by optionalChannel("channel", "The channel to send the message to")
-        val message by coalescedString("message", "The message to send")
+        val channel by optionalChannel(
+            "channel",
+            translationsProvider.translate("utils.command.echo.args.channel", bundleName = "cobaltumbot")
+        )
+        val message by coalescedString(
+            "message",
+            translationsProvider.translate("utils.command.echo.args.message", bundleName = "cobaltumbot")
+        )
     }
 
     inner class EchoAttachmentsArguments : Arguments() {
-        val channel by optionalChannel("channel", "The channel to send the attachment(s) to")
+        val channel by optionalChannel(
+            "channel",
+            translationsProvider.translate("utils.command.echoattachments.args.channel", bundleName = "cobaltumbot")
+        )
     }
 
     inner class BroadcastArguments : Arguments() {
-        val message by coalescedString("message", "The message to send")
+        val message by coalescedString(
+            "message",
+            translationsProvider.translate("utils.command.broadcast.args.message", bundleName = "cobaltumbot")
+        )
     }
 
     inner class SetPresenceArguments : Arguments() {
-        val type by string("type", "The type of presence to set")
-        val description by coalescedString("text", "The description to set")
+        val type by string(
+            "type",
+            translationsProvider.translate("utils.command.setpresence.args.type", bundleName = "cobaltumbot")
+        )
+        val description by coalescedString(
+            "text",
+            translationsProvider.translate("utils.command.setpresence.args.description", bundleName = "cobaltumbot")
+        )
     }
 
     inner class SetPresenceStatusArguments : Arguments() {
-        val status by string("status", "The status to set")
+        val status by string(
+            "status",
+            translationsProvider.translate("utils.command.setpresencestatus.args.status", bundleName = "cobaltumbot")
+        )
     }
 }

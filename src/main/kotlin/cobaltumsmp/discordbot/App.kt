@@ -6,6 +6,7 @@ import cobaltumsmp.discordbot.extensions.VersionCheckExtension
 import cobaltumsmp.discordbot.extensions.suggestions.SuggestionsExtension
 import cobaltumsmp.discordbot.extensions.ticketsystem.TicketSystemExtension
 import com.kotlindiscord.kord.extensions.ExtensibleBot
+import java.util.Locale
 
 internal suspend fun main() {
     val bot = ExtensibleBot(DISCORD_TOKEN) {
@@ -32,12 +33,17 @@ internal suspend fun main() {
             playing("${prefix}help")
         }
 
+        i18n {
+            if (LOCALE != null) {
+                defaultLocale = Locale.forLanguageTag(LOCALE)
+            }
+        }
+
         // TODO: Add back i18n
 
         extensions {
             add(::UtilsExtension)
             add(::VersionCheckExtension)
-//            add(::LoggingExtension)
             add(::ModerationExtension)
             add(::SuggestionsExtension)
 

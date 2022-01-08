@@ -6,6 +6,7 @@ import dev.kord.common.entity.Snowflake
 
 internal val DISCORD_TOKEN = env("DISCORD_TOKEN")
 internal val ENVIRONMENT = envOrNull("ENVIRONMENT") ?: "production"
+internal val LOCALE = envOrNull("BOT_LOCALE")
 
 internal val PREFIX = env("PREFIX")
 internal val GUILD_MAIN = Snowflake(env("GUILD_ID_MAIN"))
