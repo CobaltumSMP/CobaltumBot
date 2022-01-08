@@ -1,5 +1,3 @@
-# TODO: Update `rootPackage` in naming -> InvalidPackageDeclaration
-
 build:
   maxIssues: 0
   excludeCorrectable: false
