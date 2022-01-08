@@ -17,9 +17,7 @@ import com.kotlindiscord.kord.extensions.commands.Arguments
 import com.kotlindiscord.kord.extensions.commands.converters.impl.coalescedString
 import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalChannel
 import com.kotlindiscord.kord.extensions.commands.converters.impl.string
-import com.kotlindiscord.kord.extensions.extensions.Extension
 import com.kotlindiscord.kord.extensions.extensions.chatCommand
-import com.kotlindiscord.kord.extensions.i18n.TranslationsProvider
 import com.kotlindiscord.kord.extensions.utils.botHasPermissions
 import com.kotlindiscord.kord.extensions.utils.permissionsForMember
 import dev.kord.common.entity.ChannelType
@@ -36,18 +34,15 @@ import io.ktor.client.call.receive
 import io.ktor.client.request.get
 import io.ktor.client.statement.HttpResponse
 import mu.KotlinLogging
-import org.koin.core.component.inject
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.util.Locale
 
 private val LOGGER = KotlinLogging.logger("cobaltumsmp.discordbot.extensions.utils")
 
-internal class UtilsExtension : Extension() {
+internal class UtilsExtension : BaseExtension() {
     override val name = "utils"
-    override val bundle = "cobaltumbot"
 
-    private val translationsProvider: TranslationsProvider by inject()
     private val broadcastTextChannels = mutableMapOf<Snowflake, TextChannel>()
     private val broadcastNewsChannels = mutableMapOf<Snowflake, NewsChannel>()
     private val client = HttpClient { } // Used for downloading attachments
@@ -88,7 +83,7 @@ internal class UtilsExtension : Extension() {
 
         chatCommand(::EchoArguments) {
             name = "echo"
-            description = translationsProvider.translate("utils.command.echo.description", bundleName = "cobaltumbot")
+            description = translate("utils.command.echo.description")
 
             check { inMainGuild() }
 
@@ -113,7 +108,7 @@ internal class UtilsExtension : Extension() {
         chatCommand(::EchoAttachmentsArguments) {
             name = "echoattachments"
             description =
-                translationsProvider.translate("utils.command.echoattachments.description", bundleName = "cobaltumbot")
+                translate("utils.command.echoattachments.description")
 
             check { inMainGuild() }
             check { hasPermission(Permission.AttachFiles) }
@@ -182,11 +177,7 @@ internal class UtilsExtension : Extension() {
             val size = broadcastTextChannels.size + broadcastNewsChannels.size
             chatCommand(::BroadcastArguments) {
                 name = "broadcast"
-                description = translationsProvider.translate(
-                    "utils.command.broadcast.description",
-                    bundleName = "cobaltumbot",
-                    replacements = arrayOf(size)
-                )
+                description = translate("utils.command.broadcast.description", arrayOf(size))
 
                 check { inMainGuild() }
                 check { isModerator() }
@@ -211,7 +202,7 @@ internal class UtilsExtension : Extension() {
         chatCommand(::SetPresenceArguments) {
             name = "setpresence"
             description =
-                translationsProvider.translate("utils.command.setpresence.description", bundleName = "cobaltumbot")
+                translate("utils.command.setpresence.description")
 
             check { inMainGuild() }
             check { isAdministrator() }
@@ -245,10 +236,7 @@ internal class UtilsExtension : Extension() {
 
         chatCommand(::SetPresenceStatusArguments) {
             name = "setpresencestatus"
-            description = translationsProvider.translate(
-                "utils.command.setpresencestatus.description",
-                bundleName = "cobaltumbot"
-            )
+            description = translate("utils.command.setpresencestatus.description")
 
             check { inMainGuild() }
             check { isAdministrator() }
@@ -276,8 +264,7 @@ internal class UtilsExtension : Extension() {
 
         chatCommand {
             name = "resetpresence"
-            description =
-                translationsProvider.translate("utils.command.resetpresence.description", bundleName = "cobaltumbot")
+            description = translate("utils.command.resetpresence.description")
 
             check { inMainGuild() }
             check { isAdministrator() }
@@ -295,45 +282,24 @@ internal class UtilsExtension : Extension() {
     }
 
     inner class EchoArguments : Arguments() {
-        val channel by optionalChannel(
-            "channel",
-            translationsProvider.translate("utils.command.echo.args.channel", bundleName = "cobaltumbot")
-        )
-        val message by coalescedString(
-            "message",
-            translationsProvider.translate("utils.command.echo.args.message", bundleName = "cobaltumbot")
-        )
+        val channel by optionalChannel("channel", translate("utils.command.echo.args.channel"))
+        val message by coalescedString("message", translate("utils.command.echo.args.message"))
     }
 
     inner class EchoAttachmentsArguments : Arguments() {
-        val channel by optionalChannel(
-            "channel",
-            translationsProvider.translate("utils.command.echoattachments.args.channel", bundleName = "cobaltumbot")
-        )
+        val channel by optionalChannel("channel", translate("utils.command.echoattachments.args.channel"))
     }
 
     inner class BroadcastArguments : Arguments() {
-        val message by coalescedString(
-            "message",
-            translationsProvider.translate("utils.command.broadcast.args.message", bundleName = "cobaltumbot")
-        )
+        val message by coalescedString("message", translate("utils.command.broadcast.args.message"))
     }
 
     inner class SetPresenceArguments : Arguments() {
-        val type by string(
-            "type",
-            translationsProvider.translate("utils.command.setpresence.args.type", bundleName = "cobaltumbot")
-        )
-        val description by coalescedString(
-            "text",
-            translationsProvider.translate("utils.command.setpresence.args.description", bundleName = "cobaltumbot")
-        )
+        val type by string("type", translate("utils.command.setpresence.args.type"))
+        val description by coalescedString("text", translate("utils.command.setpresence.args.description"))
     }
 
     inner class SetPresenceStatusArguments : Arguments() {
-        val status by string(
-            "status",
-            translationsProvider.translate("utils.command.setpresencestatus.args.status", bundleName = "cobaltumbot")
-        )
+        val status by string("status", translate("utils.command.setpresencestatus.args.status"))
     }
 }

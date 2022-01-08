@@ -39,8 +39,6 @@ internal suspend fun main() {
             }
         }
 
-        // TODO: Add back i18n
-
         extensions {
             add(::UtilsExtension)
             add(::VersionCheckExtension)

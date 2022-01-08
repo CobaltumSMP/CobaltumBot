@@ -9,6 +9,7 @@ import cobaltumsmp.discordbot.database.entities.Ticket
 import cobaltumsmp.discordbot.database.entities.TicketConfig
 import cobaltumsmp.discordbot.database.tables.TicketConfigs
 import cobaltumsmp.discordbot.database.tables.Tickets
+import cobaltumsmp.discordbot.extensions.BaseExtension
 import cobaltumsmp.discordbot.inMainGuild
 import cobaltumsmp.discordbot.isAdministrator
 import cobaltumsmp.discordbot.isModerator
@@ -28,7 +29,6 @@ import com.kotlindiscord.kord.extensions.components.components
 import com.kotlindiscord.kord.extensions.components.ephemeralButton
 import com.kotlindiscord.kord.extensions.components.publicButton
 import com.kotlindiscord.kord.extensions.components.types.emoji
-import com.kotlindiscord.kord.extensions.extensions.Extension
 import com.kotlindiscord.kord.extensions.extensions.chatCommand
 import com.kotlindiscord.kord.extensions.extensions.event
 import com.kotlindiscord.kord.extensions.types.PublicInteractionContext
@@ -91,8 +91,8 @@ private val TICKET_PER_USER_ALLOWED_PERMISSIONS =
 
 private val LOGGER = KotlinLogging.logger("cobaltumsmp.discordbot.extensions.ticketsystem")
 
-class TicketSystemExtension : Extension() {
-    override val name: String = "Ticket System"
+class TicketSystemExtension : BaseExtension() {
+    override val name: String = "ticketsystem"
 
     private val scheduler: Scheduler = Scheduler()
     private val closeTicketTasks = mutableMapOf<Ticket, Task>()

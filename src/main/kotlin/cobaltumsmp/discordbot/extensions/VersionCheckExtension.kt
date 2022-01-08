@@ -3,10 +3,8 @@ package cobaltumsmp.discordbot.extensions
 import cobaltumsmp.discordbot.isModerator
 import cobaltumsmp.discordbot.multipleSnowflakes
 import com.google.gson.JsonParseException
-import com.kotlindiscord.kord.extensions.extensions.Extension
 import com.kotlindiscord.kord.extensions.extensions.chatCommand
 import com.kotlindiscord.kord.extensions.extensions.event
-import com.kotlindiscord.kord.extensions.i18n.TranslationsProvider
 import com.kotlindiscord.kord.extensions.utils.envOrNull
 import com.kotlindiscord.kord.extensions.utils.respond
 import com.kotlindiscord.kord.extensions.utils.scheduling.Scheduler
@@ -23,7 +21,6 @@ import io.ktor.client.statement.HttpResponse
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import mu.KotlinLogging
-import org.koin.core.component.inject
 import org.quiltmc.launchermeta.version_manifest.VersionEntry
 import org.quiltmc.launchermeta.version_manifest.VersionManifest
 import java.util.Locale
@@ -40,11 +37,9 @@ private val MINECRAFT_URL = envOrNull("VC_MINECRAFT_URL")
 
 private val LOGGER = KotlinLogging.logger("cobaltumsmp.discordbot.extensions.versioncheck")
 
-internal class VersionCheckExtension : Extension() {
+internal class VersionCheckExtension : BaseExtension() {
     override val name = "versioncheck"
-    override val bundle = "cobaltumbot"
 
-    private val translationsProvider: TranslationsProvider by inject()
     private val client = HttpClient {
         install(JsonFeature) {
             serializer = KotlinxSerializer(Json {
@@ -94,10 +89,7 @@ internal class VersionCheckExtension : Extension() {
 
         chatCommand {
             name = "versioncheck"
-            description = translationsProvider.translate(
-                "versioncheck.command.versioncheck.description",
-                bundleName = "cobaltumbot"
-            )
+            description = translate("versioncheck.command.versioncheck.description")
 
             check { isModerator() }
 
@@ -215,11 +207,7 @@ internal class VersionCheckExtension : Extension() {
             if (newJiraVersion != null) {
                 jiraUpdateChannels.forEach {
                     it.createMessage {
-                        content = translationsProvider.translate(
-                            "versioncheck.new_version.jira",
-                            bundleName = "cobaltumbot",
-                            replacements = arrayOf(newJiraVersion.name)
-                        )
+                        content = translate("versioncheck.new_version.jira", arrayOf(newJiraVersion.name))
                     }
                 }
             }
@@ -229,11 +217,7 @@ internal class VersionCheckExtension : Extension() {
             if (newMcVersion != null) {
                 mcUpdateChannels.forEach {
                     it.createMessage {
-                        content = translationsProvider.translate(
-                            "versioncheck.new_version.mc",
-                            bundleName = "cobaltumbot",
-                            replacements = arrayOf(newMcVersion.type, newMcVersion.id)
-                        )
+                        content = translate("versioncheck.new_version.mc", arrayOf(newMcVersion.type, newMcVersion.id))
                     }
                 }
             }
