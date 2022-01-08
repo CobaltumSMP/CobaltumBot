@@ -11,6 +11,8 @@ import cobaltumsmp.discordbot.inMainGuild
 import cobaltumsmp.discordbot.isAdministrator
 import cobaltumsmp.discordbot.isModerator
 import cobaltumsmp.discordbot.mainGuild
+import com.kotlindiscord.kord.extensions.DiscordRelayedException
+import com.kotlindiscord.kord.extensions.checks.hasPermission
 import com.kotlindiscord.kord.extensions.commands.Arguments
 import com.kotlindiscord.kord.extensions.commands.converters.impl.coalescedString
 import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalChannel
@@ -28,7 +30,14 @@ import dev.kord.core.behavior.channel.createMessage
 import dev.kord.core.entity.channel.GuildChannel
 import dev.kord.core.entity.channel.NewsChannel
 import dev.kord.core.entity.channel.TextChannel
+import dev.kord.rest.NamedFile
+import io.ktor.client.HttpClient
+import io.ktor.client.call.receive
+import io.ktor.client.request.get
+import io.ktor.client.statement.HttpResponse
 import mu.KotlinLogging
+import java.io.ByteArrayInputStream
+import java.io.IOException
 import java.util.Locale
 
 private val LOGGER = KotlinLogging.logger("cobaltumsmp.discordbot.extensions.UtilsExtension")
@@ -37,6 +46,7 @@ internal class UtilsExtension : Extension() {
     override val name = "utils"
     private val broadcastTextChannels = mutableMapOf<Snowflake, TextChannel>()
     private val broadcastNewsChannels = mutableMapOf<Snowflake, NewsChannel>()
+    private val client = HttpClient { } // Used for downloading attachments
 
     override suspend fun setup() {
         val guild = mainGuild(kord)
@@ -92,6 +102,58 @@ internal class UtilsExtension : Extension() {
 
                 channel.createMessage {
                     content = arguments.message
+                }
+            }
+        }
+
+        chatCommand(::EchoAttachmentsArguments) {
+            name = "echoattachments"
+            description = "Echo a message with just attachments"
+
+            check { inMainGuild() }
+            check { hasPermission(Permission.AttachFiles) }
+
+            action {
+                val channel = arguments.channel?.let { it as TextChannel } ?: message.channel.asChannel()
+                val guildChannel = channel as GuildChannel
+
+                // Check permissions
+                if (!guildChannel.botHasPermissions(Permission.SendMessages, Permission.AttachFiles)) {
+                    message.respond("The bot does not have permission to send messages or attach files in that channel")
+                    return@action
+                } else if (!guildChannel.permissionsForMember(user!!)
+                        .contains(Permission.SendMessages) || !guildChannel.permissionsForMember(user!!)
+                        .contains(Permission.AttachFiles)
+                ) {
+                    message.respond("You don't have permission to send messages or attach files in that channel")
+                    return@action
+                }
+
+                // Check attachments
+                val attachments = message.attachments
+                if (attachments.isEmpty()) {
+                    message.respond("No attachments found")
+                    return@action
+                }
+
+                // Download attachments
+                val files = mutableListOf<NamedFile>()
+                for (attachment in attachments) {
+                    try {
+                        val response: HttpResponse = client.get(attachment.url)
+                        val byteArray: ByteArray = response.receive()
+                        val inputStream = ByteArrayInputStream(byteArray)
+
+                        files.add(NamedFile(attachment.filename, inputStream))
+                    } catch (e: IOException) {
+                        LOGGER.error("Could not download attachment $attachment", e)
+                        throw DiscordRelayedException("Could not download attachment")
+                    }
+                }
+
+                channel.createMessage {
+                    content = ""
+                    this.files.addAll(files)
                 }
             }
         }
@@ -220,6 +282,10 @@ internal class UtilsExtension : Extension() {
     inner class EchoArguments : Arguments() {
         val channel by optionalChannel("channel", "The channel to send the message to")
         val message by coalescedString("message", "The message to send")
+    }
+
+    inner class EchoAttachmentsArguments : Arguments() {
+        val channel by optionalChannel("channel", "The channel to send the attachment(s) to")
     }
 
     inner class BroadcastArguments : Arguments() {
