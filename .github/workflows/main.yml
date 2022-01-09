@@ -16,7 +16,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build
-        run: ./gradlew build -x detekt --stactrace
+        run: ./gradlew build -x detekt --stacktrace
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
