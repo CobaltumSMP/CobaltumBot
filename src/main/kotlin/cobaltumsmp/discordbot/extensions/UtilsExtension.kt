@@ -258,7 +258,7 @@ internal class UtilsExtension : BaseExtension() {
                     }
                 }
 
-                message.respondTranslated("utils.command.setpresencestatus.success")
+                message.respondTranslated("utils.command.setpresencestatus.success", arrayOf(statusStr))
             }
         }
 
