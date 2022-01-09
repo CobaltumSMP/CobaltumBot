@@ -9,6 +9,7 @@ import cobaltumsmp.discordbot.database.Database
 import cobaltumsmp.discordbot.database.entities.Suggestion
 import cobaltumsmp.discordbot.database.tables.Suggestions
 import cobaltumsmp.discordbot.escapeCodeBlocks
+import cobaltumsmp.discordbot.extensions.BaseExtension
 import cobaltumsmp.discordbot.isModerator
 import cobaltumsmp.discordbot.mainGuild
 import com.kotlindiscord.kord.extensions.DiscordRelayedException
@@ -24,7 +25,6 @@ import com.kotlindiscord.kord.extensions.components.ComponentContainer
 import com.kotlindiscord.kord.extensions.components.components
 import com.kotlindiscord.kord.extensions.components.ephemeralButton
 import com.kotlindiscord.kord.extensions.components.types.emoji
-import com.kotlindiscord.kord.extensions.extensions.Extension
 import com.kotlindiscord.kord.extensions.extensions.ephemeralSlashCommand
 import com.kotlindiscord.kord.extensions.extensions.event
 import com.kotlindiscord.kord.extensions.types.respond
@@ -71,7 +71,7 @@ private val SUGGESTIONS_CHANNEL = envOrNull("CHANNEL_ID_SUGGESTIONS")
 
 private val LOGGER = KotlinLogging.logger("cobaltumsmp.discordbot.extensions.suggestions")
 
-class SuggestionsExtension : Extension() {
+class SuggestionsExtension : BaseExtension() {
     override val name = "suggestions"
 
     private val suggestions = mutableListOf<Suggestion>()
@@ -138,7 +138,7 @@ class SuggestionsExtension : Extension() {
         // region commands
         ephemeralSlashCommand(::EditSuggestionArguments) {
             name = "edit-suggestion"
-            description = "Edit one of your suggestions"
+            description = translate("suggestions.command.edit_suggestion.description")
 
             guild(GUILD_MAIN)
 
@@ -148,7 +148,7 @@ class SuggestionsExtension : Extension() {
                 // Check if the user is the owner
                 if (suggestion.ownerId != user.id) {
                     respond {
-                        content = "You can only edit your own suggestions"
+                        content = translate("suggestions.command.edit_suggestion.not_owner")
                     }
                     return@action
                 }
@@ -163,14 +163,14 @@ class SuggestionsExtension : Extension() {
 
                 // Send response
                 respond {
-                    content = "Suggestion updated"
+                    content = translate("suggestions.command.edit_suggestion.success")
                 }
             }
         }
 
         ephemeralSlashCommand(::SuggestionStatusArguments) {
             name = "suggestion-status"
-            description = "Change the status of a suggestion"
+            description = translate("suggestions.command.suggestion_status.description")
 
             guild(GUILD_MAIN)
 
@@ -204,7 +204,7 @@ class SuggestionsExtension : Extension() {
 
                 // Send response
                 respond {
-                    content = "Suggestion updated"
+                    content = translate("suggestions.command.suggestion_status.success")
                 }
             }
         }
@@ -245,8 +245,10 @@ class SuggestionsExtension : Extension() {
                 escapedDescription
             }
 
-            val errorMessage = "The suggestion you tried to post was too long (${description.length}" +
-                    "/$MAX_DESCRIPTION_LENGTH chars.)\n\n```\n$resentText\n```"
+            val errorMessage = translate(
+                "suggestions.error.description_too_long",
+                arrayOf(description.length, MAX_DESCRIPTION_LENGTH, resentText)
+            )
 
             val dm = user.dm {
                 content = errorMessage
@@ -337,23 +339,23 @@ class SuggestionsExtension : Extension() {
         description = "<@${suggestion.ownerId.value}>\n\n${suggestion.description}\n\n"
 
         if (suggestion.positiveVotes > 0) {
-            description += "**Positive votes:** ${suggestion.positiveVotes}\n"
+            description += translate("suggestions.positive_votes", arrayOf(suggestion.positiveVotes))
         }
 
         if (suggestion.negativeVotes > 0) {
-            description += "**Negative votes:** ${suggestion.negativeVotes}\n"
+            description += translate("suggestions.negative_votes", arrayOf(suggestion.negativeVotes))
         }
 
-        description += "**Total votes:** ${suggestion.voteDelta}"
+        description += translate("suggestions.total_votes", arrayOf(suggestion.voteDelta))
 
         if (suggestion.response != null) {
-            description += "\n\n**__Staff response:__**\n\n${suggestion.response}"
+            description += translate("suggestions.response", arrayOf(suggestion.response))
         }
 
         color = suggestion.status.color
 
         footer {
-            text = "Status: ${suggestion.status.readableName} | ID: ${suggestion.id}"
+            text = translate("suggestions.footer", arrayOf(suggestion.status.readableName, suggestion.id))
         }
     }
 
@@ -375,14 +377,14 @@ class SuggestionsExtension : Extension() {
         ephemeralButton {
             emoji(EMOTE_UP)
 
-            label = "Upvote"
+            label = translate("suggestions.button.vote_positive")
             this.id = "$id/$UPVOTE_BUTTON"
 
             action {
                 // Check suggestion status
                 if (suggestion.status != SuggestionStatus.Open) {
                     respond {
-                        content = "This suggestion isn't open and its votes cannot be changed."
+                        content = translate("suggestions.error.vote.closed")
                     }
 
                     return@action
@@ -396,7 +398,7 @@ class SuggestionsExtension : Extension() {
                 // Check if the user has already voted
                 if (userId in voterIds) {
                     respond {
-                        content = "You have already upvoted this suggestion."
+                        content = translate("suggestions.error.vote.already_voted_positive")
                     }
                     return@action
                 }
@@ -421,7 +423,7 @@ class SuggestionsExtension : Extension() {
 
                 // Send response
                 respond {
-                    content = "Your vote has been registered."
+                    content = translate("suggestions.vote_registered")
                 }
             }
         }
@@ -429,14 +431,14 @@ class SuggestionsExtension : Extension() {
         ephemeralButton {
             emoji(EMOTE_DOWN)
 
-            label = "Downvote"
+            label = translate("suggestions.button.vote_negative")
             this.id = "$id/$DOWNVOTE_BUTTON"
 
             action {
                 // Check suggestion status
                 if (suggestion.status != SuggestionStatus.Open) {
                     respond {
-                        content = "This suggestion isn't open and its votes cannot be changed."
+                        content = translate("suggestions.error.vote.closed")
                     }
 
                     return@action
@@ -450,7 +452,7 @@ class SuggestionsExtension : Extension() {
                 // Check if the user has already voted
                 if (userId in voterIds) {
                     respond {
-                        content = "You have already downvoted this suggestion."
+                        content = translate("suggestions.error.vote.already_voted_negative")
                     }
                     return@action
                 }
@@ -475,7 +477,7 @@ class SuggestionsExtension : Extension() {
 
                 // Send response
                 respond {
-                    content = "Your vote has been registered."
+                    content = translate("suggestions.vote_registered")
                 }
             }
         }
@@ -483,7 +485,7 @@ class SuggestionsExtension : Extension() {
         ephemeralButton {
             emoji(EMOTE_WASTEBASKET)
 
-            label = "Retract vote"
+            label = translate("suggestions.button.retract_vote")
             this.id = "$id/$RETRACT_BUTTON"
             style = ButtonStyle.Danger
 
@@ -491,7 +493,7 @@ class SuggestionsExtension : Extension() {
                 // Check suggestion status
                 if (suggestion.status != SuggestionStatus.Open) {
                     respond {
-                        content = "This suggestion isn't open and its votes cannot be changed."
+                        content = translate("suggestions.error.vote.closed")
                     }
 
                     return@action
@@ -503,7 +505,7 @@ class SuggestionsExtension : Extension() {
                 // Check if the user has already voted
                 if (userId !in suggestion.positiveVoterIds && userId !in suggestion.negativeVoterIds) {
                     respond {
-                        content = "You have not voted on this suggestion."
+                        content = translate("suggestions.error.vote.not_voted")
                     }
                     return@action
                 }
@@ -524,38 +526,68 @@ class SuggestionsExtension : Extension() {
 
                 // Send response
                 respond {
-                    content = "Your vote has been retracted."
+                    content = translate("suggestions.vote_retracted")
                 }
             }
         }
     }
 
     inner class EditSuggestionArguments : Arguments() {
-        val suggestionId by int("suggestionId", "The ID of the suggestion to edit.") { _, value ->
+        val suggestionId by int("suggestionId", translate("suggestions.command_args.suggestionId")) { _, value ->
             if (!suggestions.any { it.id.value == value }) {
-                throw DiscordRelayedException("No suggestion with ID $value exists.")
+                throw DiscordRelayedException(
+                    translate(
+                        "suggestions.command_args.suggestionId.not_found",
+                        arrayOf(value)
+                    )
+                )
             }
         }
 
-        val description by coalescedString("description", "The new description of the suggestion.") { _, value ->
+        val description by coalescedString(
+            "description",
+            translate("suggestions.command.edit_suggestion.args.description")
+        ) { _, value ->
             if (value.length > MAX_DESCRIPTION_LENGTH) {
-                throw DiscordRelayedException("The description must be less than $MAX_DESCRIPTION_LENGTH characters.")
+                throw DiscordRelayedException(
+                    translate(
+                        "suggestions.command.edit_suggestion.args.description.too_long",
+                        arrayOf(MAX_DESCRIPTION_LENGTH)
+                    )
+                )
             }
         }
     }
 
     inner class SuggestionStatusArguments : Arguments() {
-        val suggestionId by int("suggestionId", "The ID of the suggestion to edit.") { _, value ->
+        val suggestionId by int("suggestionId", translate("suggestions.command_args.suggestionId")) { _, value ->
             if (!suggestions.any { it.id.value == value }) {
-                throw DiscordRelayedException("No suggestion with ID $value exists.")
+                throw DiscordRelayedException(
+                    translate(
+                        "suggestions.command_args.suggestionId.not_found",
+                        arrayOf(value)
+                    )
+                )
             }
         }
 
-        val status by enumChoice<SuggestionStatus>("status", "The new status of the suggestion.", "status")
+        val status by enumChoice<SuggestionStatus>(
+            "status",
+            translate("suggestions.command.suggestion_status.args.status"),
+            "status"
+        )
 
-        val response by optionalCoalescingString("response", "The response to the suggestion.") { _, value ->
+        val response by optionalCoalescingString(
+            "response",
+            translate("suggestions.command.suggestion_status.args.response")
+        ) { _, value ->
             if (value != null && value.length > MAX_RESPONSE_LENGTH) {
-                throw DiscordRelayedException("The response must be less than $MAX_RESPONSE_LENGTH characters.")
+                throw DiscordRelayedException(
+                    translate(
+                        "suggestions.command.suggestion_status.args.response.too_long",
+                        arrayOf(MAX_RESPONSE_LENGTH)
+                    )
+                )
             }
         }
     }
