@@ -4,6 +4,8 @@
 
 package cobaltumsmp.discordbot.extensions.ticketsystem
 
+import cobaltumsmp.discordbot.GUILD_MAIN
+import cobaltumsmp.discordbot.checkHasPermissionsInChannel
 import cobaltumsmp.discordbot.database.Database
 import cobaltumsmp.discordbot.database.entities.Ticket
 import cobaltumsmp.discordbot.database.entities.TicketConfig
@@ -23,7 +25,19 @@ import com.kotlindiscord.kord.extensions.checks.channelIdFor
 import com.kotlindiscord.kord.extensions.checks.isNotBot
 import com.kotlindiscord.kord.extensions.checks.types.CheckContext
 import com.kotlindiscord.kord.extensions.checks.userFor
+import com.kotlindiscord.kord.extensions.commands.Arguments
 import com.kotlindiscord.kord.extensions.commands.chat.ChatCommandContext
+import com.kotlindiscord.kord.extensions.commands.converters.impl.channel
+import com.kotlindiscord.kord.extensions.commands.converters.impl.int
+import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalBoolean
+import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalDuration
+import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalInt
+import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalMessage
+import com.kotlindiscord.kord.extensions.commands.converters.impl.optionalString
+import com.kotlindiscord.kord.extensions.commands.converters.impl.roleList
+import com.kotlindiscord.kord.extensions.commands.converters.impl.string
+import com.kotlindiscord.kord.extensions.commands.converters.impl.user
+import com.kotlindiscord.kord.extensions.commands.converters.impl.userList
 import com.kotlindiscord.kord.extensions.components.components
 import com.kotlindiscord.kord.extensions.components.ephemeralButton
 import com.kotlindiscord.kord.extensions.components.publicButton
@@ -36,6 +50,7 @@ import com.kotlindiscord.kord.extensions.utils.respond
 import com.kotlindiscord.kord.extensions.utils.scheduling.Scheduler
 import com.kotlindiscord.kord.extensions.utils.scheduling.Task
 import dev.kord.common.entity.ButtonStyle
+import dev.kord.common.entity.ChannelType
 import dev.kord.common.entity.Permission
 import dev.kord.common.entity.Permissions
 import dev.kord.common.entity.Snowflake
@@ -205,7 +220,7 @@ class TicketSystemExtension : BaseExtension() {
             }
         }
 
-        chatCommand({ GenericTicketConfigArguments(this) }) {
+        chatCommand(::GenericTicketConfigArguments) {
             name = "deleteticketconfig"
             description = translate("ticketsystem.command.deleteticketconfig.description")
 
@@ -270,7 +285,7 @@ class TicketSystemExtension : BaseExtension() {
             }
         }
 
-        chatCommand({ GenericTicketConfigArguments(this) }) {
+        chatCommand(::GenericTicketConfigArguments) {
             name = "fixticketconfig"
             description = translate("ticketsystem.command.fixticketconfig.description")
 
@@ -293,7 +308,7 @@ class TicketSystemExtension : BaseExtension() {
             }
         }
 
-        chatCommand({ FixTicketArguments(this) }) {
+        chatCommand(::FixTicketArguments) {
             name = "fixticket"
             description = translate("ticketsystem.command.fixticket.description")
 
@@ -359,7 +374,7 @@ class TicketSystemExtension : BaseExtension() {
             }
         }
 
-        chatCommand({ AddUserToTicketArguments(this) }) {
+        chatCommand(::AddUserToTicketArguments) {
             name = "addusertoticket"
             description = translate("ticketsystem.command.addusertoticket.description")
 
@@ -415,7 +430,7 @@ class TicketSystemExtension : BaseExtension() {
             }
         }
 
-        chatCommand({ RemoveUserFromTicketArguments(this) }) {
+        chatCommand(::RemoveUserFromTicketArguments) {
             name = "removeuserfromticket"
             description = translate("ticketsystem.command.removeuserfromticket.description")
 
@@ -462,7 +477,7 @@ class TicketSystemExtension : BaseExtension() {
             }
         }
 
-        chatCommand({ TransferTicketArguments(this) }) {
+        chatCommand(::TransferTicketArguments) {
             name = "transferticket"
             description = translate("ticketsystem.command.transferticket.description")
 
@@ -514,7 +529,7 @@ class TicketSystemExtension : BaseExtension() {
             }
         }
 
-        chatCommand({ CloseTicketArguments(this) }) {
+        chatCommand(::CloseTicketArguments) {
             name = "closeticket"
             description = translate("ticketsystem.command.closeticket.description")
 
@@ -563,7 +578,7 @@ class TicketSystemExtension : BaseExtension() {
             }
         }
 
-        chatCommand({ RenameTicketArguments(this) }) {
+        chatCommand(::RenameTicketArguments) {
             name = "renameticket"
             description = translate("ticketsystem.command.renameticket.description")
 
@@ -1112,6 +1127,175 @@ class TicketSystemExtension : BaseExtension() {
             val ticket = ticketsByChannelId[channelId]
             if (ticket!!.ownerId != userId) {
                 fail(translate("ticketsystem.error.not_ticket_owner"))
+            }
+        }
+    }
+
+    inner class SetupTicketsArguments : Arguments() {
+        val ticketCategory by channel(
+            "ticketCategory",
+            translate("ticketsystem.command.setuptickets.args.ticketCategory"),
+            requiredGuild = { GUILD_MAIN }) { _, channel ->
+            if (channel.type != ChannelType.GuildCategory) {
+                throw DiscordRelayedException(
+                    translate(
+                        "generic.error.channel_must_be_of_type",
+                        arrayOf("GuildCategory")
+                    )
+                )
+            } else {
+                checkHasPermissionsInChannel(
+                    channel,
+                    Permission.ViewChannel,
+                    Permission.ManageChannels,
+                    Permission.ManageRoles,
+                    Permission.ManageMessages
+                )
+            }
+        }
+
+        val closedTicketCategory by channel(
+            "closedTicketCategory",
+            translate("ticketsystem.command.setuptickets.args.closedTicketCategory"),
+            requiredGuild = { GUILD_MAIN }) { _, channel ->
+            if (channel.type != ChannelType.GuildCategory) {
+                throw DiscordRelayedException(
+                    translate(
+                        "generic.error.channel_must_be_of_type",
+                        arrayOf("GuildCategory")
+                    )
+                )
+            } else {
+                checkHasPermissionsInChannel(
+                    channel,
+                    Permission.ViewChannel,
+                    Permission.ManageChannels,
+                    Permission.ManageRoles,
+                    Permission.ManageMessages
+                )
+            }
+        }
+
+        val roles by roleList(
+            "roles",
+            translate("ticketsystem.command.setuptickets.args.roles"),
+            requiredGuild = { GUILD_MAIN }) { _, list ->
+            if (list.size > TicketConfig.MAX_ROLES) {
+                throw DiscordRelayedException(
+                    translate(
+                        "ticketsystem.command.setuptickets.args.roles.too_many",
+                        arrayOf(TicketConfig.MAX_ROLES)
+                    )
+                )
+            }
+        }
+
+        val messageChannel by channel(
+            "messageChannel",
+            translate("ticketsystem.command.setuptickets.args.messageChannel"),
+            requiredGuild = { GUILD_MAIN }) { _, channel ->
+            if (channel.type != ChannelType.GuildText) {
+                throw DiscordRelayedException(translate("generic.error.channel_must_be_of_type", arrayOf("GuildText")))
+            }
+        }
+
+        val name by optionalString("name", translate("ticketsystem.command.setuptickets.args.name")) { _, value ->
+            if (value != null && value.length > TicketConfigs.NAME_LENGTH) {
+                throw DiscordRelayedException(
+                    translate(
+                        "generic.error.name_too_long",
+                        arrayOf(TicketConfigs.NAME_LENGTH)
+                    )
+                )
+            }
+        }
+
+        val ticketsBaseName by optionalString(
+            "ticketsBaseName",
+            translate("ticketsystem.command.setuptickets.args.ticketsBaseName")
+        ) { _, value ->
+            if (value != null && value.length > Tickets.BASE_NAME_LENGTH) {
+                throw DiscordRelayedException(
+                    translate(
+                        "generic.error.name_too_long",
+                        arrayOf(Tickets.BASE_NAME_LENGTH)
+                    )
+                )
+            }
+        }
+
+        val message by optionalMessage("message", translate("ticketsystem.command.setuptickets.args.message"))
+    }
+
+    inner class GenericTicketConfigArguments : Arguments() {
+        val configId by int("configId", translate("ticketsystem.command_args.configId")) { _, value ->
+            if (!ticketConfigExists(value)) {
+                throw DiscordRelayedException(translate("ticketsystem.command_args.configId.not_found"))
+            }
+        }
+    }
+
+    inner class FixTicketArguments : Arguments() {
+        val ticketId by optionalInt("ticketId", translate("ticketsystem.command.fixticket.args.ticketId"))
+        val isGlobalId by optionalBoolean("isGlobalId", translate("ticketsystem.command_args.isGlobalId"))
+        val configId by optionalInt("configId", translate("ticketsystem.command_args.configId")) { _, value ->
+            if (value != null && !ticketConfigExists(value)) {
+                throw DiscordRelayedException(translate("ticketsystem.command_args.configId.not_found"))
+            }
+        }
+    }
+
+    inner class AddUserToTicketArguments : Arguments() {
+        val users by userList("users", translate("ticketsystem.command.addusertoticket.args.users"))
+        val ticketId by optionalInt("ticketId", translate("ticketsystem.command.addusertoticket.args.ticketId"))
+        val isGlobalId by optionalBoolean("isGlobalId", translate("ticketsystem.command_args.isGlobalId"))
+        val configId by optionalInt("configId", translate("ticketsystem.command_args.configId")) { _, value ->
+            if (value != null && !ticketConfigExists(value)) {
+                throw DiscordRelayedException(translate("ticketsystem.command_args.configId.not_found"))
+            }
+        }
+    }
+
+    inner class RemoveUserFromTicketArguments : Arguments() {
+        val users by userList("users", translate("ticketsystem.command.removeuserfromticket.args.users"))
+        val ticketId by optionalInt("ticketId", translate("ticketsystem.command.removeuserfromticket.args.ticketId"))
+        val isGlobalId by optionalBoolean("isGlobalId", translate("ticketsystem.command_args.isGlobalId"))
+        val configId by optionalInt("configId", translate("ticketsystem.command_args.configId")) { _, value ->
+            if (value != null && !ticketConfigExists(value)) {
+                throw DiscordRelayedException(translate("ticketsystem.command_args.configId.not_found"))
+            }
+        }
+    }
+
+    inner class TransferTicketArguments : Arguments() {
+        val user by user("user", translate("ticketsystem.command.transferticket.args.user"))
+        val ticketId by optionalInt("ticketId", translate("ticketsystem.command.transferticket.args.ticketId"))
+        val isGlobalId by optionalBoolean("isGlobalId", translate("ticketsystem.command_args.isGlobalId"))
+        val configId by optionalInt("configId", translate("ticketsystem.command_args.configId")) { _, value ->
+            if (value != null && !ticketConfigExists(value)) {
+                throw DiscordRelayedException(translate("ticketsystem.command_args.configId.not_found"))
+            }
+        }
+    }
+
+    inner class CloseTicketArguments : Arguments() {
+        val delay by optionalDuration("delay", translate("ticketsystem.command.closeticket.args.delay"))
+        val ticketId by optionalInt("ticketId", translate("ticketsystem.command.closeticket.args.ticketId"))
+        val isGlobalId by optionalBoolean("isGlobalId", translate("ticketsystem.command_args.isGlobalId"))
+        val configId by optionalInt("configId", translate("ticketsystem.command_args.configId")) { _, value ->
+            if (value != null && !ticketConfigExists(value)) {
+                throw DiscordRelayedException(translate("ticketsystem.command_args.configId.not_found"))
+            }
+        }
+    }
+
+    inner class RenameTicketArguments : Arguments() {
+        val name by string("name", translate("ticketsystem.command.renameticket.args.name"))
+        val ticketId by optionalInt("ticketId", translate("ticketsystem.command.renameticket.args.ticketId"))
+        val isGlobalId by optionalBoolean("isGlobalId", translate("ticketsystem.command_args.isGlobalId"))
+        val configId by optionalInt("configId", translate("ticketsystem.command_args.configId")) { _, value ->
+            if (value != null && !ticketConfigExists(value)) {
+                throw DiscordRelayedException(translate("ticketsystem.command_args.configId.not_found"))
             }
         }
     }
