@@ -16,7 +16,6 @@ import cobaltumsmp.discordbot.isModerator
 import cobaltumsmp.discordbot.mainGuild
 import cobaltumsmp.discordbot.memberOverwrite
 import cobaltumsmp.discordbot.roleOverwrite
-import cobaltumsmp.discordbot.toReadableString
 import com.kotlindiscord.kord.extensions.DISCORD_GREEN
 import com.kotlindiscord.kord.extensions.DISCORD_YELLOW
 import com.kotlindiscord.kord.extensions.DiscordRelayedException
@@ -182,8 +181,11 @@ class TicketSystemExtension : BaseExtension() {
                     channel.createMessage {
                         embed {
                             color = DISCORD_YELLOW
-                            title = "Ticket Closing Cancelled"
-                            description = "Ticket closing cancelled by ${userFor(event)!!.mention}"
+                            title = translate("ticketsystem.ticket.close.cancelled")
+                            description = translate(
+                                "ticketsystem.ticket.close.cancelled.reason",
+                                arrayOf(userFor(event)!!.mention)
+                            )
                         }
                     }
                 }
@@ -193,7 +195,7 @@ class TicketSystemExtension : BaseExtension() {
         // region commands
         chatCommand(::SetupTicketsArguments) {
             name = "setuptickets"
-            description = "Sets up the ticket system with a new ticket config"
+            description = translate("ticketsystem.command.setuptickets.description")
 
             check { inMainGuild() }
             check { isAdministrator() }
@@ -205,7 +207,7 @@ class TicketSystemExtension : BaseExtension() {
 
         chatCommand({ GenericTicketConfigArguments(this) }) {
             name = "deleteticketconfig"
-            description = "Deletes a ticket config"
+            description = translate("ticketsystem.command.deleteticketconfig.description")
 
             check { inMainGuild() }
             check { isAdministrator() }
@@ -216,12 +218,10 @@ class TicketSystemExtension : BaseExtension() {
                 val tickets = config!!.tickets
 
                 val displayName = config.displayName()
-                val response = msg.respond {
-                    content = """
-                        This will delete the ticket config $displayName and ${tickets.count()} ticket(s).
-                        Are you sure you want to do this? Press the button below to confirm.
-                    """.trimIndent()
-                }
+                val response = msg.respondTranslated(
+                    "ticketsystem.command.deleteticketconfig.confirm",
+                    arrayOf(displayName, tickets.count())
+                )
 
                 // For some reason adding the button directly in the message creation gives an Invalid Permissions error
                 response.edit {
@@ -229,7 +229,7 @@ class TicketSystemExtension : BaseExtension() {
                         ephemeralButton {
                             emoji(EMOTE_WARNING)
 
-                            label = "Delete Ticket Config $displayName"
+                            label = translate("ticketsystem.command.deleteticketconfig.button")
                             style = ButtonStyle.Danger
 
                             action {
@@ -243,7 +243,7 @@ class TicketSystemExtension : BaseExtension() {
 
         chatCommand {
             name = "listticketconfigs"
-            description = "List all ticket configs"
+            description = translate("ticketsystem.command.listticketconfigs.description")
 
             check { inMainGuild() }
             check { isModerator() }
@@ -260,7 +260,7 @@ class TicketSystemExtension : BaseExtension() {
                     }
                 }.chunked(10)
 
-                paginator {
+                paginator(targetMessage = message) {
                     for (list in chunked) {
                         page {
                             description = list.joinToString("\n")
@@ -272,7 +272,7 @@ class TicketSystemExtension : BaseExtension() {
 
         chatCommand({ GenericTicketConfigArguments(this) }) {
             name = "fixticketconfig"
-            description = "Fix permissions for a ticket config"
+            description = translate("ticketsystem.command.fixticketconfig.description")
 
             check { inMainGuild() }
             check { isModerator() }
@@ -289,15 +289,13 @@ class TicketSystemExtension : BaseExtension() {
 
                 setupTicketCategoriesPermissions(category, closedCategory, roles)
                 val displayName = config.displayName()
-                message.respond {
-                    content = "Permissions for ticket config $displayName have been fixed"
-                }
+                message.respondTranslated("ticketsystem.command.fixticketconfig.success", arrayOf(displayName))
             }
         }
 
         chatCommand({ FixTicketArguments(this) }) {
             name = "fixticket"
-            description = "Fix permissions for a ticket"
+            description = translate("ticketsystem.command.fixticket.description")
 
             check { inMainGuild() }
             check { isModerator() }
@@ -357,15 +355,13 @@ class TicketSystemExtension : BaseExtension() {
                     permissionOverwrites = overwrites
                 }
 
-                message.respond {
-                    content = "Permissions for ticket channel ${ticketChannel.mention} have been fixed"
-                }
+                message.respondTranslated("ticketsystem.command.fixticket.success", arrayOf(ticketChannel.mention))
             }
         }
 
         chatCommand({ AddUserToTicketArguments(this) }) {
             name = "addusertoticket"
-            description = "Add a user or users to a ticket"
+            description = translate("ticketsystem.command.addusertoticket.description")
 
             check { inMainGuild() }
             check { isModerator() }
@@ -384,7 +380,8 @@ class TicketSystemExtension : BaseExtension() {
                 val extraUsers = currentExtraUsers + newExtraUsers
                 if (extraUsers.size > Ticket.MAX_EXTRA_USERS) {
                     message.respond {
-                        content = "There can only be a maximum of ${Ticket.MAX_EXTRA_USERS} extra users in a ticket"
+                        content =
+                            translate("ticketsystem.command.addusertoticket.max_users", arrayOf(Ticket.MAX_EXTRA_USERS))
                     }
                     return@action
                 }
@@ -411,10 +408,8 @@ class TicketSystemExtension : BaseExtension() {
                     content = newExtraUsers.joinToString(", ") { "<@$it>" }
 
                     embed {
-                        description = """
-                            You have been added to ticket ${channel.mention}
-                            A staff member will explain the situation shortly
-                        """.trimIndent()
+                        description =
+                            translate("ticketsystem.command.addusertoticket.notification", arrayOf(channel.mention))
                     }
                 }
             }
@@ -422,7 +417,7 @@ class TicketSystemExtension : BaseExtension() {
 
         chatCommand({ RemoveUserFromTicketArguments(this) }) {
             name = "removeuserfromticket"
-            description = "Remove a user or users from a ticket"
+            description = translate("ticketsystem.command.removeuserfromticket.description")
 
             check { inMainGuild() }
             check { isModerator() }
@@ -458,7 +453,10 @@ class TicketSystemExtension : BaseExtension() {
                 // Send response
                 val removedUsers = usersToRemove.joinToString(", ") { "<@${it.value}>" }
                 message.respond {
-                    content = "Removed $removedUsers from ticket ${channel.mention}"
+                    content = translate(
+                        "ticketsystem.command.removeuserfromticket.success",
+                        arrayOf(removedUsers, channel.mention)
+                    )
                     allowedMentions = AllowedMentionsBuilder()
                 }
             }
@@ -466,7 +464,7 @@ class TicketSystemExtension : BaseExtension() {
 
         chatCommand({ TransferTicketArguments(this) }) {
             name = "transferticket"
-            description = "Transfer ownership of a ticket to another user"
+            description = translate("ticketsystem.command.transferticket.description")
 
             check { inMainGuild() }
             check { isModerator() }
@@ -485,9 +483,10 @@ class TicketSystemExtension : BaseExtension() {
                 val userId = user.id
                 if (userId !in extraUsers) {
                     message.respond {
-                        content =
-                            "User ${user.mention} is not in ticket ${channel.mention}. " +
-                                    "Please add them first with `addusertoticket`"
+                        content = translate(
+                            "ticketsystem.command.transferticket.user_not_in_ticket",
+                            arrayOf(user.mention, channel.mention)
+                        )
                         allowedMentions = AllowedMentionsBuilder()
                     }
                     return@action
@@ -508,18 +507,19 @@ class TicketSystemExtension : BaseExtension() {
                 ticketOwnerIds.replace(ticket, userId)
 
                 // Send response
-                message.respond {
-                    content = "Transferred ticket ${channel.mention} to ${user.mention}"
-                }
+                message.respondTranslated(
+                    "ticketsystem.command.transferticket.success",
+                    arrayOf(user.mention, channel.mention)
+                )
             }
         }
 
         chatCommand({ CloseTicketArguments(this) }) {
             name = "closeticket"
-            description = "Close a ticket"
+            description = translate("ticketsystem.command.closeticket.description")
 
             check { inMainGuild() }
-            check { canCloseTicket() }
+            check { isOwner() }
 
             action {
                 // Get the ticket
@@ -540,11 +540,13 @@ class TicketSystemExtension : BaseExtension() {
                     // Send embed
                     val guild = mainGuild(event.kord)!!
                     val channel = guild.getChannel(channelId) as TextChannel
-                    val delayDisplay = arguments.delay!!.toReadableString()
                     channel.createMessage {
                         embed {
-                            title = "Ticket will close"
-                            description = "This ticket will be closed in $delayDisplay."
+                            title = translate("ticketsystem.command.closeticket.scheduled_embed.title")
+                            description = translate(
+                                "ticketsystem.command.closeticket.scheduled_embed.description",
+                                arrayOf(arguments.delay)
+                            )
                             color = DISCORD_YELLOW
                         }
                     }
@@ -563,7 +565,7 @@ class TicketSystemExtension : BaseExtension() {
 
         chatCommand({ RenameTicketArguments(this) }) {
             name = "renameticket"
-            description = "Rename a ticket"
+            description = translate("ticketsystem.command.renameticket.description")
 
             check { inMainGuild() }
             check { isModerator() }
@@ -586,9 +588,7 @@ class TicketSystemExtension : BaseExtension() {
                     name = "$baseName-$id"
                 }
 
-                message.respond {
-                    content = "Renamed the ticket"
-                }
+                message.respondTranslated("ticketsystem.command.renameticket.success", arrayOf(channel.mention))
             }
         }
 
@@ -599,6 +599,8 @@ class TicketSystemExtension : BaseExtension() {
         // TODO: Transfer ticket claim command
         // TODO: Assign ticket command
         // endregion
+
+        // TODO: Ticket log
     }
 
     private fun setupDb() {
@@ -673,9 +675,7 @@ class TicketSystemExtension : BaseExtension() {
         val msg = arguments.message ?: run {
             msgChannel.createMessage {
                 embed {
-                    description = """
-                        Press the button below to open a new ticket
-                    """.trimIndent()
+                    description = translate("ticketsystem.ticket_config.open_ticket.message")
                 }
             }
         }
@@ -709,8 +709,8 @@ class TicketSystemExtension : BaseExtension() {
 
             LOGGER.debug { "Inserted ticket config ${ticketConfig!!.displayName()}" }
         } catch (e: SQLException) {
-            LOGGER.error(e) { "Failed to insert the ticket config in the database" }
-            throw DiscordRelayedException("Failed to insert the ticket config in the database")
+            LOGGER.error(e) { "Failed to insert a ticket config to the database" }
+            throw DiscordRelayedException(translate("ticketsystem.ticket_config.create.failed_insert"))
         }
 
         // Add button to message
@@ -720,14 +720,16 @@ class TicketSystemExtension : BaseExtension() {
 
         // Send message to the user
         LOGGER.info { "Created ticket config ${ticketConfig!!.displayName()}" }
-        message.respond("Created ticket config ${ticketConfig!!.displayName()}")
+        message.respond {
+            content = translate("ticketsystem.ticket_config.create.success", arrayOf(ticketConfig!!.displayName()))
+        }
     }
 
     private suspend fun MessageModifyBuilder.setupTicketConfigButtons(id: Int) {
         components {
             publicButton {
                 emoji(EMOTE_TICKET)
-                label = "Open Ticket"
+                label = translate("ticketsystem.ticket_config.open_ticket.button")
                 this.id = "$id/CreateTicket"
 
                 action {
@@ -790,11 +792,11 @@ class TicketSystemExtension : BaseExtension() {
             // TODO: Delete all tickets within this config
             LOGGER.info { "Deleted ticket config ${config!!.displayName()}" }
             message.respond {
-                content = "Deleted the ticket config ${config!!.displayName()}"
+                content = translate("ticketsystem.ticket_config.delete.success", arrayOf(config!!.displayName()))
             }
         } catch (e: SQLException) {
-            LOGGER.error(e) { "Failed to delete the ticket config in the database" }
-            throw DiscordRelayedException("Failed to delete the ticket config in the database")
+            LOGGER.error(e) { "Failed to delete a ticket config from the database" }
+            throw DiscordRelayedException(translate("ticketsystem.ticket_config.delete.failed_delete"))
         }
     }
 
@@ -811,7 +813,8 @@ class TicketSystemExtension : BaseExtension() {
                         "has too many open tickets (${userOpenTickets.size})"
             }
             context.respondEphemeral {
-                content = "You can only have $MAX_OPEN_TICKETS_PER_USER open tickets at a time"
+                content =
+                    translate("ticketsystem.ticket.create.too_many_open_tickets", arrayOf(MAX_OPEN_TICKETS_PER_USER))
             }
             return
         }
@@ -824,8 +827,7 @@ class TicketSystemExtension : BaseExtension() {
                         "has created a ticket in the last $MIN_TICKET_CREATE_DELAY_MINUTES minutes"
             }
             context.respondEphemeral {
-                content = "You have opened a ticket in the last $MIN_TICKET_CREATE_DELAY_MINUTES minutes. " +
-                        "Please wait before opening another ticket."
+                content = translate("ticketsystem.ticket.create.too_fast", arrayOf(MIN_TICKET_CREATE_DELAY_MINUTES))
             }
             return
         }
@@ -885,15 +887,10 @@ class TicketSystemExtension : BaseExtension() {
         val botMsg = channel.createMessage {
             content = owner.mention
             embed {
-                description = """
-                    **Support will be with you shortly**
-                    In the meantime, please provide as much information about your issue as possible
-
-                    You can use the button below to close the ticket.
-                """.trimIndent()
+                description = translate("ticketsystem.ticket.bot_message")
                 color = DISCORD_GREEN
                 footer {
-                    text = "Ticket ID: ${ticket!!.id.value}"
+                    text = translate("ticketsystem.ticket.bot_message.footer", arrayOf(ticket!!.id.value))
                 }
             }
         }
@@ -907,7 +904,7 @@ class TicketSystemExtension : BaseExtension() {
 
         // Send message to the user
         context.respondEphemeral {
-            content = "Your ticket has been created in ${channel.mention}"
+            content = translate("ticketsystem.ticket.create.success", arrayOf(channel.mention))
         }
     }
 
@@ -934,7 +931,7 @@ class TicketSystemExtension : BaseExtension() {
         val guild = mainGuild(kord)!!
         val channel = guild.getChannel(channelId) as TextChannel
         channel.createMessage {
-            content = "The ticket has been closed"
+            content = translate("ticketsystem.ticket.close.success")
         }
 
         // Remove user permissions
@@ -968,7 +965,7 @@ class TicketSystemExtension : BaseExtension() {
         val owner = guild.getMember(ownerId)
         val dms = owner.getDmChannel()
         dms.createMessage {
-            content = "Your ticket #${channel.name} has been closed"
+            content = translate("ticketsystem.ticket.close.owner_notification", arrayOf(channel.name))
         }
 
         // Remove buttons
@@ -1019,17 +1016,17 @@ class TicketSystemExtension : BaseExtension() {
                 ephemeralButton {
                     emoji(EMOTE_LOCK)
 
-                    label = "Close ticket"
+                    label = translate("ticketsystem.ticket.close.button")
                     style = ButtonStyle.Danger
                     id = "$globalTicketId/CloseTicket"
 
-                    check { canCloseTicket() }
+                    check { isOwner() }
 
                     action {
                         this@setupTicketButtons.addCloseTicketConfirmationButtons(globalTicketId)
                     }
                     initialResponse {
-                        content = "Are you sure you want to close this ticket? Press the confirm button to do it."
+                        content = translate("ticketsystem.ticket.close.button.confirmation")
                     }
                 }
             }
@@ -1041,11 +1038,11 @@ class TicketSystemExtension : BaseExtension() {
             components {
                 ephemeralButton {
                     emoji(EMOTE_WARNING)
-                    label = "Confirm"
+                    label = translate("generic.button.confirm")
                     style = ButtonStyle.Danger
                     this.id = "$globalTicketId/CloseTicketConfirm"
 
-                    check { canCloseTicket() }
+                    check { isOwner() }
 
                     action {
                         doCloseTicket(globalTicketId)
@@ -1053,10 +1050,10 @@ class TicketSystemExtension : BaseExtension() {
                 }
 
                 ephemeralButton {
-                    label = "Cancel"
+                    label = translate("generic.button.cancel")
                     this.id = "$globalTicketId/CloseTicketCancel"
 
-                    check { canCloseTicket() }
+                    check { isOwner() }
 
                     action {
                         // Reset buttons
@@ -1082,8 +1079,7 @@ class TicketSystemExtension : BaseExtension() {
                 tickets.find { it.ticketId == ticketId }
             } else {
                 message.respond {
-                    content = "You must specify a ticket config id " +
-                            "or a global ticket id if there are multiple ticket configs"
+                    content = translate("ticketsystem.error.no_ticket_config_or_id")
                 }
                 null
             }
@@ -1093,7 +1089,7 @@ class TicketSystemExtension : BaseExtension() {
             val ticket = tickets.find { it.channelId == channelId }
             if (ticket == null) {
                 message.respond {
-                    content = "You must run this command in a ticket channel or specify a ticket id"
+                    content = translate("ticketsystem.error.not_in_channel")
                 }
             }
 
@@ -1101,7 +1097,7 @@ class TicketSystemExtension : BaseExtension() {
         }
     }
 
-    private suspend fun CheckContext<*>.canCloseTicket() {
+    private suspend fun CheckContext<*>.isOwner() {
         if (!passed) {
             return
         }
@@ -1115,7 +1111,7 @@ class TicketSystemExtension : BaseExtension() {
             val userId = userFor(event)!!.id
             val ticket = ticketsByChannelId[channelId]
             if (ticket!!.ownerId != userId) {
-                fail("You must be the owner of the ticket to close it")
+                fail(translate("ticketsystem.error.not_ticket_owner"))
             }
         }
     }
