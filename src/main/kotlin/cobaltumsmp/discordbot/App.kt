@@ -1,5 +1,6 @@
 package cobaltumsmp.discordbot
 
+import cobaltumsmp.discordbot.extensions.AutoRoleExtension
 import cobaltumsmp.discordbot.extensions.ModerationExtension
 import cobaltumsmp.discordbot.extensions.UtilsExtension
 import cobaltumsmp.discordbot.extensions.VersionCheckExtension
@@ -44,6 +45,7 @@ internal suspend fun main() {
             add(::VersionCheckExtension)
             add(::ModerationExtension)
             add(::SuggestionsExtension)
+            add(::AutoRoleExtension)
 
             add(::TicketSystemExtension)
         }
