@@ -7,6 +7,7 @@ import cobaltumsmp.discordbot.extensions.VersionCheckExtension
 import cobaltumsmp.discordbot.extensions.suggestions.SuggestionsExtension
 import cobaltumsmp.discordbot.extensions.ticketsystem.TicketSystemExtension
 import com.kotlindiscord.kord.extensions.ExtensibleBot
+import com.kotlindiscord.kord.extensions.utils.envOrNull
 import java.util.Locale
 
 internal suspend fun main() {
@@ -48,6 +49,18 @@ internal suspend fun main() {
             add(::AutoRoleExtension)
 
             add(::TicketSystemExtension)
+
+            // Setup sentry
+            sentry {
+                val sentryDsn = envOrNull("SENTRY_DSN")
+
+                if (sentryDsn != null) {
+                    enable = true
+
+                    dsn = sentryDsn
+                    environment = ENVIRONMENT
+                }
+            }
         }
     }
     bot.start()
