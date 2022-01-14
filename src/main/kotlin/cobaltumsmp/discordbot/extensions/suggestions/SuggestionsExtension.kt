@@ -397,6 +397,7 @@ class SuggestionsExtension : BaseExtension() {
 
             label = translate("suggestions.button.vote_positive")
             this.id = "$id/$UPVOTE_BUTTON"
+            bundle = "cobaltumbot"
 
             action {
                 // Check suggestion status
@@ -451,6 +452,7 @@ class SuggestionsExtension : BaseExtension() {
 
             label = translate("suggestions.button.vote_negative")
             this.id = "$id/$DOWNVOTE_BUTTON"
+            bundle = "cobaltumbot"
 
             action {
                 // Check suggestion status
@@ -506,6 +508,7 @@ class SuggestionsExtension : BaseExtension() {
             label = translate("suggestions.button.retract_vote")
             this.id = "$id/$RETRACT_BUTTON"
             style = ButtonStyle.Danger
+            bundle = "cobaltumbot"
 
             action {
                 // Check suggestion status

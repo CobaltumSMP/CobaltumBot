@@ -1126,7 +1126,7 @@ class TicketSystemExtension : BaseExtension() {
             val userId = userFor(event)!!.id
             val ticket = ticketsByChannelId[channelId]
             if (ticket!!.ownerId != userId) {
-                fail(translate("ticketsystem.error.not_ticket_owner"))
+                fail(translate("ticketsystem.error.not_ticket_owner", bundle = "cobaltumbot"))
             }
         }
     }
