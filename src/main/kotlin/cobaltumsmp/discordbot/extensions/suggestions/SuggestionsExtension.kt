@@ -229,8 +229,24 @@ class SuggestionsExtension : BaseExtension() {
         val openSuggestions = suggestions.filter { it.status == SuggestionStatus.Open }
 
         openSuggestions.forEach {
-            val message = suggestionsChannel.getMessage(it.messageId!!)
-            message.setupSuggestionButtons(it)
+            if (it.messageId != null) {
+                val message = suggestionsChannel.getMessage(it.messageId!!)
+                message.setupSuggestionButtons(it)
+            } else {
+                // Send the suggestion if it is in the database but has no message
+                val message = sendSuggestion(it)
+
+                // Add message id to the suggestion in the database
+                transaction {
+                    it.messageId = message.id
+                }
+
+                // Add the suggestion to the cache
+                suggestionMessages[message.id] = it
+
+                // Set up the buttons for the suggestion message
+                message.setupSuggestionButtons(it)
+            }
         }
     }
 
@@ -340,10 +356,12 @@ class SuggestionsExtension : BaseExtension() {
 
         if (suggestion.positiveVotes > 0) {
             description += translate("suggestions.positive_votes", arrayOf(suggestion.positiveVotes))
+            description += "\n"
         }
 
         if (suggestion.negativeVotes > 0) {
             description += translate("suggestions.negative_votes", arrayOf(suggestion.negativeVotes))
+            description += "\n"
         }
 
         description += translate("suggestions.total_votes", arrayOf(suggestion.voteDelta))
