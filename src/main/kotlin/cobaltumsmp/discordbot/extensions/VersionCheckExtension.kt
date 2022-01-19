@@ -110,7 +110,7 @@ internal class VersionCheckExtension : BaseExtension() {
                             translate("versioncheck.latest_version", arrayOf(getLatestMinecraftVersion().id))
                         val mcTotal = translate("versioncheck.total_versions", arrayOf(mcVersions.size))
                         val jiraLatest =
-                            translate("versioncheck.latest_version", arrayOf(getLatestJiraVersion().id))
+                            translate("versioncheck.latest_version", arrayOf(getLatestJiraVersion().name))
                         val jiraTotal = translate("versioncheck.total_versions", arrayOf(jiraVersions.size))
 
                         message.respond {
