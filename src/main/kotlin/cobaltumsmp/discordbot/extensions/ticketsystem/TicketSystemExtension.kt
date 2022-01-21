@@ -667,9 +667,31 @@ class TicketSystemExtension : BaseExtension() {
         val openTickets = tickets.filter { !it.closed }
         openTickets.forEach {
             val channel = guild.getChannel(it.channelId) as TextChannel
-            val message = channel.getMessageOrNull(it.botMsgId!!)!!
+            val msgId = it.botMsgId
+            if (msgId != null) {
+                val message = channel.getMessageOrNull(it.botMsgId!!)!!
 
-            message.setupTicketButtons(it.id.value)
+                message.setupTicketButtons(it.id.value)
+            } else {
+                // Send bot message in the ticket channel if it wasn't sent yet but the ticket is in the database
+                val owner = guild.getMember(it.ownerId)
+                val message = channel.createMessage {
+                    content = owner.mention
+                    embed {
+                        description = translate("ticketsystem.ticket.bot_message")
+                        color = DISCORD_GREEN
+                        footer {
+                            text = translate("ticketsystem.ticket.bot_message.footer", arrayOf(it.id.value))
+                        }
+                    }
+                }
+                message.setupTicketButtons(it.id.value)
+
+                // Add bot message id to the ticket in the database
+                transaction {
+                    it.botMsgId = message.id
+                }
+            }
         }
     }
 
